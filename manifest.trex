@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <dashboard-extension id="com.example.extensions.kpicard" extension-version="1.0.0">
+    <default-locale>en_US</default-locale>
+    <name resource-id="name" />
+    <description>Customisable KPI card: title, current period value, up/down delta vs previous month, quarter, or year, and a trend chart.</description>
+    <author name="Your Name" email="you@example.com" organization="Your Organisation" website="https://example.com" />
+    <min-api-version>1.9</min-api-version>
+    <source-location>
+      <url>https://your-host.example.com/kpi-card/index.html</url>
+    </source-location>
+    <icon>iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAADf0lEQVR4nO2dTbLTMBAGA8Up4D5kSY4KS7gPucZjQbnK5Ti2xpqRRvq6N1AQ7Fd0eyzF7+d2AwAAAEU+RZ/gx/e/H9HnmJ1ff76FeXI/MMLj8QzC7UCIb49HCNUHQHx/akL4XHNi5OegxsOlchCfF+s0ME8A5OfG6scUAPLHwOKpOADkj0Wpr6IAkD8mJd6qdgEwPqcBcPWPzZm/wwCQPwdHHrkFiPM2AK7+uXjnkwkgzm4AXP1zsueVCSAOAYhDAOK8BMD9f262fpkA4hCAOAQgDgGIQwDiEIA4BCAOAYhDAOIQgDgEIA4BiEMA4hCAOAQgDgGIQwDiEIA4BCAOAQTz8/fX3h/CIQQQyCI/cwQE0IisERBAEHvCM0ZAAAEcic4WAQE4UyI4UwQE0IksERCAI1apGSIgACeuyuwdAQEkoGcEX7qdeSKOBD7uz9PXLH+/vPbouNvX1MIEqKRE/vb3Jcd6d1zvaUEADSmNoGRaeEEAFZRe/SV/7nluCwRwkSvyM8Ii8AKjbvn2IABnSlbymSAAIx5bvkwQgIHo1bklIK91BgF0Zk/k4/5stsgcfhfQatx6n+dxfx6KjN5GLrz8jLmRvlHkWkrk1stLfpbt4fpnCw57C9hK2XsvPeI8VrJIf8eQARy9T57hPzzDx1DKcAGUrsQ9JFiu/pGkrxkqAIuQ2mnQcivWk2ECuHIvjrglzCB9zRDbwJqF2NVwtpxt20YlfQAeo9h661gfd1bxC6kDsMj3iGC9gJxZ+pq0a4BS+bULw+2/VxG/kPKdwF5P01Tkp34nMFL+WrD6lb+QKoAI+UcPVUZ6bh9FmkVg66dty2vWvyqSYgL0fNqmLP92SxDA7E/bstM1gKvyke5HtwCs8pEeQ5cASuUjPZ7mAZzJR3pbmgYwy5dTzUSzAFp8rTvYaRJAq8/eBTvhAWT5RE3YJ/ytYOTnJs2zAOgDAYhDAOIQgDgEIA4BiEMA4hCAOAQgDgGIQwDiEIA4BCAOAYhDAOK8BLD+ylGYj61fJoA4BCAOAYizGwDrgDnZ88oEEOdtAEyBuXjnkwkgzmEATIE5OPJ4OgGIYGzO/HELEKcoAKbAmJR4K54ARDAWpb5MtwAiGAOLJ/MagAhyY/VTJTPDN5aG/1y9MKt2AUyDHNR4cBPINGiPxwXofgUTQjyekzd8hBNEPdxqAQAggH+6b1/g9jzbNQAAAABJRU5ErkJggg==</icon>
+    <permissions>
+      <permission>full data</permission>
+    </permissions>
+  </dashboard-extension>
+  <resources>
+    <resource id="name">
+      <text locale="en_US">KPI Card</text>
+    </resource>
+  </resources>
+</manifest>

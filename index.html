@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>KPI Card</title>
+<script src="https://tableau.github.io/extensions-api/lib/tableau.extensions.1.latest.js"></script>
+<style>
+  :root{
+    --ink:#111827; --muted:#6b7280; --accent:#4F46E5; --accent-soft:rgba(79,70,229,0.18);
+    --green:#16a34a; --red:#dc2626; --bg:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%; margin:0;}
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    color:var(--ink); background:var(--bg);
+    display:flex; flex-direction:column;
+  }
+  #card{
+    display:flex; flex-direction:column; height:100%; padding:18px 20px 0 20px;
+    position:relative;
+  }
+  #title{
+    font-size:20px; font-weight:700; margin:0 0 4px 0; letter-spacing:-0.01em;
+  }
+  #period{
+    font-size:12px; color:var(--muted); margin:0 0 10px 0;
+  }
+  #value{
+    font-size:40px; font-weight:800; color:var(--accent); margin:0 0 8px 0;
+    line-height:1; letter-spacing:-0.01em;
+  }
+  #delta{
+    font-size:13px; margin:0 0 10px 0; color:var(--muted);
+  }
+  #delta .amt{font-weight:700;}
+  #delta .up{color:var(--green);}
+  #delta .down{color:var(--red);}
+  #chartWrap{
+    flex:1; min-height:60px; position:relative; margin:0 -20px;
+  }
+  svg{display:block; width:100%; height:100%;}
+  #configBtn{
+    position:absolute; top:12px; right:14px; width:26px; height:26px; border-radius:6px;
+    border:1px solid #e5e7eb; background:#fff; color:var(--muted); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:14px; opacity:0;
+    transition:opacity .15s ease;
+  }
+  #card:hover #configBtn{opacity:1;}
+  #configBtn:hover{background:#f3f4f6;}
+  #empty{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; text-align:center; color:var(--muted); gap:10px; padding:20px;
+  }
+  #empty button{
+    padding:8px 16px; border-radius:6px; border:none; background:var(--accent); color:#fff;
+    font-weight:600; cursor:pointer; font-size:13px;
+  }
+</style>
+</head>
+<body>
+  <div id="empty" style="display:none;">
+    <div>No data source configured yet.</div>
+    <button id="configureNowBtn">Configure KPI Card</button>
+  </div>
+
+  <div id="card" style="display:none;">
+    <button id="configBtn" title="Configure">&#9881;</button>
+    <h1 id="title">KPI</h1>
+    <div id="period"></div>
+    <div id="value">--</div>
+    <div id="delta"></div>
+    <div id="chartWrap">
+      <svg id="chart" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+<script>
+const PERIOD_LABEL = { month: 'Previous Month', quarter: 'Previous Quarter', year: 'Previous Year' };
+
+function periodKey(date, period){
+  const y = date.getFullYear();
+  if (period === 'year') return `${y}`;
+  if (period === 'quarter') return `${y}-Q${Math.floor(date.getMonth()/3)+1}`;
+  return `${y}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+
+function periodLabelForKey(key, period){
+  if (period === 'year') return key;
+  if (period === 'quarter') return key.replace('-', ' ');
+  const [y, m] = key.split('-');
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${names[parseInt(m,10)-1]} ${y}`;
+}
+
+function formatValue(v, settings){
+  const decimals = parseInt(settings.decimals || '0', 10);
+  const num = v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${settings.prefix || ''}${num}${settings.suffix || ''}`;
+}
+
+async function fetchSeries(settings){
+  const dashboard = tableau.extensions.dashboardContent.dashboard;
+  const worksheet = dashboard.worksheets.find(w => w.name === settings.worksheet);
+  if (!worksheet) throw new Error(`Worksheet "${settings.worksheet}" not found.`);
+
+  const data = await worksheet.getSummaryDataAsync({ ignoreSelection: true, maxRows: 0 });
+  const cols = data.columns;
+  const dateIdx = cols.findIndex(c => c.fieldName === settings.dateField);
+  const kpiIdx = cols.findIndex(c => c.fieldName === settings.kpiField);
+  if (dateIdx === -1) throw new Error(`Date field "${settings.dateField}" not found in worksheet.`);
+  if (kpiIdx === -1) throw new Error(`KPI field "${settings.kpiField}" not found in worksheet.`);
+
+  const buckets = new Map(); // periodKey -> { sum, count, last, lastDate }
+  data.data.forEach(row => {
+    const rawDate = row[dateIdx].value;
+    const rawKpi = row[kpiIdx].value;
+    if (rawDate === null || rawKpi === null) return;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return;
+    const v = typeof rawKpi === 'number' ? rawKpi : parseFloat(rawKpi);
+    if (isNaN(v)) return;
+
+    const key = periodKey(d, settings.period);
+    if (!buckets.has(key)) buckets.set(key, { sum: 0, count: 0, last: v, lastDate: d });
+    const b = buckets.get(key);
+    b.sum += v;
+    b.count += 1;
+    if (d >= b.lastDate) { b.last = v; b.lastDate = d; }
+  });
+
+  const keys = Array.from(buckets.keys()).sort();
+  const agg = settings.agg || 'sum';
+  const series = keys.map(k => {
+    const b = buckets.get(k);
+    let value;
+    if (agg === 'avg') value = b.sum / b.count;
+    else if (agg === 'last') value = b.last;
+    else value = b.sum;
+    return { key: k, value, date: b.lastDate };
+  });
+
+  return series;
+}
+
+function renderChart(series){
+  const svg = document.getElementById('chart');
+  const w = 600, h = 140, pad = 6;
+  svg.innerHTML = '';
+  if (series.length < 2) return;
+
+  const values = series.map(s => s.value);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const stepX = (w - pad * 2) / (series.length - 1);
+
+  const points = series.map((s, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (h - pad * 2) * (1 - (s.value - min) / range);
+    return [x, y];
+  });
+
+  let linePath = `M ${points[0][0]},${points[0][1]}`;
+  for (let i = 1; i < points.length; i++) {
+    const [x0, y0] = points[i-1];
+    const [x1, y1] = points[i];
+    const mx = (x0 + x1) / 2;
+    linePath += ` C ${mx},${y0} ${mx},${y1} ${x1},${y1}`;
+  }
+
+  let areaPath = linePath + ` L ${points[points.length-1][0]},${h} L ${points[0][0]},${h} Z`;
+
+  const accentColor = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#4F46E5';
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const defs = document.createElementNS(ns, 'defs');
+  defs.innerHTML = `
+    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${accentColor}" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="${accentColor}" stop-opacity="0"/>
+    </linearGradient>`;
+  svg.appendChild(defs);
+
+  const area = document.createElementNS(ns, 'path');
+  area.setAttribute('d', areaPath);
+  area.setAttribute('fill', 'url(#areaGrad)');
+  svg.appendChild(area);
+
+  const line = document.createElementNS(ns, 'path');
+  line.setAttribute('d', linePath);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', accentColor);
+  line.setAttribute('stroke-width', '2.5');
+  line.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(line);
+}
+
+async function render(){
+  const settings = tableau.extensions.settings.getAll();
+
+  if (!settings.worksheet || !settings.dateField || !settings.kpiField) {
+    document.getElementById('empty').style.display = 'flex';
+    document.getElementById('card').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('card').style.display = 'flex';
+
+  document.getElementById('title').textContent = settings.title || 'KPI';
+
+  try {
+    const series = await fetchSeries(settings);
+    if (series.length === 0) {
+      document.getElementById('period').textContent = 'No data';
+      document.getElementById('value').textContent = '--';
+      document.getElementById('delta').textContent = '';
+      renderChart([]);
+      return;
+    }
+
+    const current = series[series.length - 1];
+    const previous = series.length > 1 ? series[series.length - 2] : null;
+
+    document.getElementById('period').textContent = periodLabelForKey(current.key, settings.period);
+    document.getElementById('value').textContent = formatValue(current.value, settings);
+
+    const deltaEl = document.getElementById('delta');
+    if (previous) {
+      const diff = current.value - previous.value;
+      const pct = previous.value !== 0 ? (diff / Math.abs(previous.value)) * 100 : 0;
+      const sign = diff >= 0 ? '+' : '';
+      const cls = diff >= 0 ? 'up' : 'down';
+      const decimals = parseInt(settings.decimals || '0', 10);
+      const diffStr = Math.abs(diff).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      deltaEl.innerHTML = `<span class="amt ${cls}">${sign}${diffStr} (${sign}${pct.toFixed(0)}%)</span> vs ${PERIOD_LABEL[settings.period]}`;
+    } else {
+      deltaEl.textContent = `No prior period to compare vs ${PERIOD_LABEL[settings.period]}`;
+    }
+
+    renderChart(series);
+  } catch (e) {
+    document.getElementById('period').textContent = 'Error loading data';
+    document.getElementById('value').textContent = '--';
+    document.getElementById('delta').textContent = e.message;
+    renderChart([]);
+  }
+}
+
+function openConfig(){
+  const popupUrl = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}config.html`;
+  tableau.extensions.ui.displayDialogAsync(popupUrl, '', { height: 620, width: 480 })
+    .then(() => render())
+    .catch(err => {
+      if (err.errorCode !== tableau.ErrorCodes.DialogClosedByUser) {
+        console.error(err);
+      }
+    });
+}
+
+function attachDataListeners(){
+  const dashboard = tableau.extensions.dashboardContent.dashboard;
+  dashboard.worksheets.forEach(ws => {
+    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged, render);
+  });
+}
+
+tableau.extensions.initializeAsync({ configure: openConfig }).then(() => {
+  document.getElementById('configBtn').addEventListener('click', openConfig);
+  document.getElementById('configureNowBtn').addEventListener('click', openConfig);
+  tableau.extensions.settings.addEventListener(tableau.TableauEventType.SettingsChanged, (event) => {
+    render();
+  });
+  attachDataListeners();
+  render();
+});
+</script>
+</body>
+</html>
