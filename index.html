@@ -1,74 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <title>Simulation Hosting</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Copilot Knowledge Source</title>
+
     <style>
         body {
-          font-family: Arial, Helvetica, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.6;
         }
 
-        .header {
-            padding: 80px; /* Adds some padding */
-            text-align: center; /* Centers the text */
-            background: #FFFFFF; /* A white background */
-            color: white; /* White text color */
+        h1 {
+            margin-bottom: 10px;
         }
 
-        /* Increase the font size of the <h1> element */
-        .header h1 {
-            font-size: 40px;
+        .knowledge-source {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
         }
 
-        /* Change color on hover/mouse-over */
-        .navbar a:hover {
-            background-color: #ddd; /* Grey background color */
-            color: black; /* Black text color */
-        }
-
-        /* Ensure proper sizing */
-        * {
-            box-sizing: border-box;
-        }
-
-        /* Make the logo responsive to fit the device screen */
-        .responsive {
-            max-width: 100%;
-            height: auto;
+        .knowledge-source p {
+            color: #555;
         }
 
         .footer {
-            padding: 20px; /* Adds some padding */
-            text-align: center; /* Centers the text*/
-            background: #FFFFFF; /* A white background */
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
 
-    <div align="center">
-        <h1>Persona</h1>
-        <a href="https://raw.githubusercontent.com/suuuee/github_hosting/main/persona.md" target="_blank">Persona</a>
-        </br>
-        <h1>test_case.md</h1>
-        <a href="https://raw.githubusercontent.com/suuuee/github_hosting/main/test_case.md" target="_blank">Test Case</a>
-        </br>
-        <h1>Rubric</h1>
-        <a href="https://raw.githubusercontent.com/suuuee/github_hosting/main/MT_CN_Competency_Rubric.json" target="_blank">Rubric</a>
-        </br>
-        
-        <h2>GitHub Public Repository</h2>
-        <p>Click the link to view the public GitHub repo where these sites are stored.</p>
-        <a href="https://suuuee.github.io/github_hosting/" target="_blank">GitHub Public Repository</a>
+    <h1>Copilot Knowledge Source</h1>
+
+    <p>
+        Knowledge files used by the Copilot Chat Agent.
+    </p>
+
+    <div class="knowledge-source">
+        <h2>Persona</h2>
+
+        <p>
+            Defines the persona and expected behaviour of the agent.
+        </p>
+
+        <a href="./persona.md">
+            View Persona
+        </a>
     </div>
 
-    </br>
+    <div class="knowledge-source">
+        <h2>Test Cases</h2>
+
+        <p>
+            Test scenarios used to evaluate agent responses.
+        </p>
+
+        <a href="./test_case.md">
+            View Test Cases
+        </a>
+    </div>
+
+    <div class="knowledge-source">
+        <h2>MT CN Competency Rubric</h2>
+
+        <p>
+            Competency definitions and assessment criteria used by the agent.
+        </p>
+
+        <a href="./MT_CN_Competency_Rubric.json">
+            View Competency Rubric
+        </a>
+    </div>
 
     <div class="footer">
-        <h2>Sites are a work in progress</h2>
+        <p>Knowledge source is a work in progress.</p>
     </div>
 
 </body>
+
 </html>
