@@ -1,0 +1,2364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Medical Team — Shift Command</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #e8edf5;
+    --border: #d0d8e4;
+    --accent: #0077cc;
+    --accent2: #e03b3b;
+    --accent3: #d97706;
+    --text: #0f1a2b;
+    --muted: #6b7c93;
+    --gap: #dc2626;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(0,119,204,0.05) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(240,244,248,0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+
+  .utc-clock {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    background: rgba(0,119,204,0.08);
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,119,204,0.2);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent3);
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+
+  .main {
+    position: relative;
+    z-index: 1;
+    padding: 24px 32px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+  .tab {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ─── TIMEZONE CLOCK VIEW ─── */
+  .tz-converter-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .converter-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .converter-header-left h2 { font-size: 15px; font-weight: 700; }
+  .converter-header-left p { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .my-tz-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  select {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* Scrubber */
+  .scrubber-bar {
+    padding: 16px 24px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .scrubber-label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .scrubber-label span { color: var(--accent); font-weight: 500; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct, 0%), var(--border) var(--pct, 0%), var(--border) 100%);
+    outline: none;
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    cursor: grab;
+  }
+
+  .scrubber-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    padding: 0 2px;
+  }
+
+  /* Cards grid */
+  .tz-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .tz-card {
+    background: var(--surface);
+    padding: 18px 20px;
+    transition: background 0.15s;
+    position: relative;
+  }
+
+  .tz-card:hover { background: #f7faff; }
+
+  .tz-card.is-home {
+    background: linear-gradient(135deg, rgba(0,119,204,0.06) 0%, rgba(0,119,204,0.02) 100%);
+  }
+
+  .tz-card.is-home::after {
+    content: 'YOU';
+    position: absolute;
+    top: 12px; right: 12px;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: white;
+    letter-spacing: 0.5px;
+  }
+
+  .card-city {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .card-tz {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 14px;
+  }
+
+  .card-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .card-time .card-ampm {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: 3px;
+  }
+
+  .card-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .card-offset {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .card-offset span {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Shift status pip on card */
+  .shift-pip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  .shift-pip.on { background: rgba(0,119,204,0.1); color: var(--accent); }
+  .shift-pip.off { background: var(--surface2); color: var(--muted); }
+  .pip-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .pip-dot.on { background: var(--accent); }
+  .pip-dot.off { background: var(--muted); }
+
+  /* Day boundary marker */
+  .day-diff {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
+  .day-diff.ahead { color: #16a34a; }
+  .day-diff.behind { color: var(--gap); }
+  .day-diff.same { color: var(--muted); }
+
+  /* ─── TIMELINE TAB ─── */
+  .timeline-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .timeline-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .timeline-title { font-size: 14px; font-weight: 700; }
+
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .grid-wrap { overflow-x: auto; padding-bottom: 8px; }
+
+  .grid-container { min-width: 900px; padding: 16px 20px; }
+
+  .hour-labels {
+    display: grid;
+    grid-template-columns: 170px repeat(24, 1fr);
+    margin-bottom: 6px;
+  }
+
+  .hour-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .hour-label:first-child { text-align: left; padding-left: 4px; }
+
+  .tz-row {
+    display: grid;
+    grid-template-columns: 170px repeat(24, 1fr);
+    margin-bottom: 3px;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .tz-label {
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    padding-right: 12px;
+  }
+  .tz-name { color: var(--text); }
+  .tz-time-small { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); margin-top: 1px; }
+
+  .hour-cell {
+    height: 26px;
+    border-radius: 3px;
+    background: var(--surface2);
+    cursor: pointer;
+    transition: all 0.1s;
+    border: 1px solid transparent;
+  }
+  .hour-cell:hover { border-color: var(--accent); }
+  .hour-cell.on-shift { background: var(--accent); opacity: 0.75; }
+  .hour-cell.on-shift:hover { opacity: 1; }
+  .hour-cell.gap { background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
+  .hour-cell.current-hour { border-color: var(--accent3) !important; border-width: 2px; }
+
+  /* ─── BOTTOM PANELS ─── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+
+  .gap-inputs { display: flex; gap: 10px; margin-bottom: 16px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+  label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.8px; }
+
+  input[type="number"], input[type="time"] {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .coverage-result { margin-top: 8px; }
+  .coverage-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .coverage-item.can-cover { border-color: rgba(0,119,204,0.3); background: rgba(0,119,204,0.05); }
+  .coverage-item.cannot-cover { opacity: 0.4; }
+
+  .coverage-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .badge-yes { background: rgba(0,119,204,0.12); color: var(--accent); }
+  .badge-no { background: rgba(220,38,38,0.08); color: var(--gap); }
+
+  .shift-rows { display: flex; flex-direction: column; gap: 7px; }
+  .shift-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: border-color 0.15s;
+  }
+  .shift-row:hover { border-color: var(--accent); }
+  .shift-tz-name { font-size: 13px; font-weight: 700; width: 110px; flex-shrink: 0; }
+  .shift-duration { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); white-space: nowrap; margin-left: auto; }
+
+  .alert-bar {
+    background: rgba(220,38,38,0.06);
+    border: 1px solid rgba(220,38,38,0.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--gap);
+    margin-bottom: 12px;
+    display: none;
+    font-family: 'DM Mono', monospace;
+  }
+  .alert-bar.show { display: block; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+  }
+
+  /* ─── COMPARE FEATURE ─── */
+  .compare-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    transition: all 0.15s;
+  }
+  .compare-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .compare-toggle.active { background: rgba(0,119,204,0.08); border-color: var(--accent); color: var(--accent); }
+
+  .shift-row-check {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 11px;
+  }
+  .shift-row-check.checked { background: var(--accent); border-color: var(--accent); color: white; }
+  .shift-row.compare-selected { border-color: var(--accent); background: rgba(0,119,204,0.04); }
+
+  .compare-panel {
+    margin-top: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: none;
+  }
+  .compare-panel.visible { display: block; }
+
+  .compare-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+  .compare-header-title { font-size: 14px; font-weight: 700; }
+  .compare-header-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  .compare-body { padding: 20px; }
+
+  .compare-shift-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .compare-shift-label {
+    font-size: 12px;
+    font-weight: 700;
+    width: 120px;
+    flex-shrink: 0;
+  }
+  .compare-shift-label small {
+    display: block;
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 1px;
+  }
+  .compare-bar-wrap {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    height: 24px;
+  }
+  .compare-cell { border-radius: 2px; background: var(--surface2); height: 100%; }
+  .compare-cell.active { background: var(--accent); opacity: 0.75; }
+  .compare-cell.overlap { background: #f59e0b; opacity: 0.95; }
+
+  .compare-ruler {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .compare-ruler-spacer { width: 120px; flex-shrink: 0; }
+  .compare-ruler-ticks {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--muted);
+  }
+  .compare-ruler-ticks span { text-align: center; }
+
+  .compare-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+  }
+  .compare-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    min-width: 130px;
+    flex: 1;
+  }
+  .compare-stat-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+  }
+  .compare-stat-value {
+    font-size: 22px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .compare-stat-value.good { color: #16a34a; }
+  .compare-stat-value.warn { color: #d97706; }
+  .compare-stat-value.bad  { color: var(--gap); }
+
+  .ol-legend { display: flex; gap: 16px; align-items: center; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .ol-legend-item { display: flex; align-items: center; gap: 6px; }
+  .ol-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+  .compare-empty { text-align: center; padding: 32px; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); }
+
+  /* ─── EMBEDDED WORLD CLOCK HEADER ─── */
+  .wc-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .wc-toggle-bar {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .wc-toggle-bar:hover { background: #f7faff; }
+
+  .wc-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wc-toggle-label {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .wc-mini-clocks {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .wc-mini-item {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .wc-mini-city {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .wc-mini-time {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .wc-mini-time.on-shift-mini { color: var(--accent); }
+
+  .wc-mini-ampm {
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .wc-chevron {
+    font-size: 12px;
+    color: var(--muted);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .wc-chevron.open { transform: rotate(180deg); }
+
+  .wc-expanded {
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .wc-expanded.open { display: block; }
+
+  .wc-scrubber-bar {
+    padding: 12px 20px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .wc-scrubber-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .wc-scrubber-label span { color: var(--accent); }
+
+  .wc-scrubber-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    padding: 0 2px;
+    margin-top: 4px;
+  }
+
+  .wc-cards-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .wc-card {
+    background: var(--surface);
+    padding: 12px 16px;
+    position: relative;
+    transition: background 0.15s;
+  }
+  .wc-card:hover { background: #f7faff; }
+  .wc-card.is-home { background: linear-gradient(135deg, rgba(0,119,204,0.06), rgba(0,119,204,0.02)); }
+  .wc-card.is-home::after {
+    content: 'YOU';
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 8px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: var(--accent);
+    color: white;
+    letter-spacing: 0.5px;
+  }
+
+  .wc-card-city { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 1px; }
+  .wc-card-tz { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+  .wc-card-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .wc-card-ampm { font-size: 11px; color: var(--muted); margin-left: 2px; }
+  .wc-card-date { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 3px; }
+  .wc-card-offset { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+  .wc-card-offset span { color: var(--accent); }
+  .wc-pip {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; font-family: 'DM Mono', monospace;
+    padding: 2px 6px; border-radius: 3px; margin-top: 4px; font-weight: 500;
+  }
+  .wc-pip.on { background: rgba(0,119,204,0.1); color: var(--accent); }
+  .wc-pip.off { background: var(--surface2); color: var(--muted); }
+  .wc-pip-dot { width: 4px; height: 4px; border-radius: 50%; }
+  .wc-pip-dot.on { background: var(--accent); }
+  .wc-pip-dot.off { background: var(--muted); }
+  .wc-day-diff { font-size: 9px; font-family: 'DM Mono', monospace; margin-top: 2px; }
+  .wc-day-diff.ahead { color: #16a34a; }
+  .wc-day-diff.behind { color: var(--gap); }
+  .wc-day-diff.same { color: var(--muted); }
+
+  .wc-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* ─── CUSTOM TZ MANAGER ─── */
+  .tz-manager-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,26,43,0.45);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .tz-manager-overlay.open { display: flex; }
+
+  .tz-manager-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+
+  .tz-manager-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tz-manager-header h3 { font-size: 15px; font-weight: 700; }
+  .tz-manager-header p { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .tz-close-btn {
+    background: none; border: none; font-size: 20px;
+    color: var(--muted); cursor: pointer; padding: 4px 8px;
+    border-radius: 6px; transition: color 0.15s;
+    line-height: 1;
+  }
+  .tz-close-btn:hover { color: var(--text); }
+
+  .tz-search-wrap {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .tz-search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tz-search-input {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .tz-search-input:focus { border-color: var(--accent); }
+  .tz-search-input::placeholder { color: var(--muted); }
+
+  .tz-search-results {
+    margin-top: 8px;
+    max-height: 160px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: none;
+  }
+  .tz-search-results.visible { display: block; }
+
+  .tz-search-item {
+    padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .tz-search-item:last-child { border-bottom: none; }
+  .tz-search-item:hover { background: var(--surface2); }
+  .tz-search-item-name { color: var(--text); font-weight: 500; }
+  .tz-search-item-offset { color: var(--muted); font-size: 11px; }
+  .tz-search-item.already-added { opacity: 0.4; cursor: default; }
+  .tz-search-item.already-added:hover { background: none; }
+
+  .tz-list-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 22px;
+  }
+
+  .tz-list-section-title {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+    margin-top: 14px;
+  }
+  .tz-list-section-title:first-child { margin-top: 0; }
+
+  .tz-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+    background: var(--surface2);
+  }
+  .tz-list-item-icon { font-size: 14px; flex-shrink: 0; }
+  .tz-list-item-name { font-size: 13px; font-weight: 700; flex: 1; }
+  .tz-list-item-tz { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+  .tz-list-item-time { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); }
+  .tz-remove-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); cursor: pointer; font-size: 13px;
+    padding: 3px 8px; border-radius: 5px; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .tz-remove-btn:hover { border-color: var(--gap); color: var(--gap); }
+  .tz-remove-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+    .tz-cards { grid-template-columns: repeat(2, 1fr); }
+    .wc-mini-clocks { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌐</div>
+    <div>
+      <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Global Medical</div>
+      <h1>Shift Command Centre</h1>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent);opacity:0.75"></div> On Shift</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(220,38,38,0.2);border:1px solid rgba(220,38,38,0.4)"></div> Gap</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--surface2);border:1px solid var(--border)"></div> Off</div>
+      <div class="legend-item"><div class="legend-dot" style="border:2px solid var(--accent3)"></div> Now</div>
+    </div>
+    <div class="utc-clock" id="utcClock"><div class="live-dot"></div>UTC 00:00:00</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('timeline')">📅 Shift Timeline</button>
+    <button class="tab" onclick="switchTab('manage')">⚙️ Manage Shifts</button>
+  </div>
+
+  <!-- ══ TAB 1: SHIFT TIMELINE ══ -->
+  <div id="tab-timeline" class="tab-panel active">
+    <!-- World Clock Header -->
+    <div class="wc-header">
+      <div class="wc-toggle-bar" onclick="toggleWcExpand(this)">
+        <div class="wc-toggle-left">
+          <span class="wc-toggle-label">🕐 World Clocks</span>
+          <div class="wc-mini-clocks" id="wcMiniClocks_tl"></div>
+        </div>
+        <div class="wc-controls" onclick="event.stopPropagation()">
+          <span style="font-size:12px;color:var(--muted);font-weight:600">Your TZ:</span>
+          <select id="homeTzSelect_tl" onchange="onHomeTzChange('tl')"></select>
+          <button class="btn" onclick="useNow('tl')">Now</button>
+          <button class="btn" onclick="openTzManager()" title="Add or remove timezones">＋ Zones</button>
+        </div>
+        <span class="wc-chevron" id="wcChevron_tl">▼</span>
+      </div>
+      <div class="wc-expanded" id="wcExpanded_tl">
+        <div class="wc-scrubber-bar">
+          <div class="wc-scrubber-label">
+            <span>Explore any time of day</span>
+            <span id="wcScrubDisplay_tl">—</span>
+          </div>
+          <input type="range" id="wcScrubber_tl" min="0" max="1439" value="0" step ="30" oninput="onWcScrub('tl', this.value)" style="margin-bottom:0">
+          <div class="wc-scrubber-ticks">
+            <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
+            <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span><span>12AM</span>
+          </div>
+        </div>
+        <div class="wc-cards-strip" id="wcCards_tl"></div>
+      </div>
+    </div>
+    <div class="timeline-section">
+      <div class="timeline-header">
+        <div>
+          <div class="timeline-title">24-Hour Shift Timeline</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace">UTC axis · Click cells in edit mode to reposition shifts</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="resetShifts()">Reset Defaults</button>
+          <button class="btn" id="editModeBtn" onclick="toggleEditMode()">✏️ Edit Mode: OFF</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid-container" id="gridContainer"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-title">🔍 Coverage Gap Finder</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Enter a UTC time window to find which teams can cover it.</p>
+        <div class="gap-inputs">
+          <div class="field"><label>Gap Start (UTC)</label><input type="time" id="gapStart" value="02:00" onchange="findCoverage()"></div>
+          <div class="field"><label>Gap End (UTC)</label><input type="time" id="gapEnd" value="06:00" onchange="findCoverage()"></div>
+        </div>
+        <div id="alertBar" class="alert-bar"></div>
+        <div class="section-title">Results</div>
+        <div id="coverageResults" class="coverage-result"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">⚙️ Shift Time Editor</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Adjust local shift start time per timezone.</p>
+        <div class="shift-rows" id="shiftRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 2: MANAGE SHIFTS ══ -->
+  <div id="tab-manage" class="tab-panel">
+    <!-- World Clock Header -->
+    <div class="wc-header">
+      <div class="wc-toggle-bar" onclick="toggleWcExpand(this)">
+        <div class="wc-toggle-left">
+          <span class="wc-toggle-label">🕐 World Clocks</span>
+          <div class="wc-mini-clocks" id="wcMiniClocks_mg"></div>
+        </div>
+        <div class="wc-controls" onclick="event.stopPropagation()">
+          <span style="font-size:12px;color:var(--muted);font-weight:600">Your TZ:</span>
+          <select id="homeTzSelect_mg" onchange="onHomeTzChange('mg')"></select>
+          <button class="btn" onclick="useNow('mg')">Now</button>
+          <button class="btn" onclick="openTzManager()" title="Add or remove timezones">＋ Zones</button>
+        </div>
+        <span class="wc-chevron" id="wcChevron_mg">▼</span>
+      </div>
+      <div class="wc-expanded" id="wcExpanded_mg">
+        <div class="wc-scrubber-bar">
+          <div class="wc-scrubber-label">
+            <span>Explore any time of day</span>
+            <span id="wcScrubDisplay_mg">—</span>
+          </div>
+          <input type="range" id="wcScrubber_mg" min="0" max="1439" value="0" step="30" oninput="onWcScrub('mg', this.value)" style="margin-bottom:0">
+          <div class="wc-scrubber-ticks">
+            <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
+            <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span><span>12AM</span>
+          </div>
+        </div>
+        <div class="wc-cards-strip" id="wcCards_mg"></div>
+      </div>
+    </div>
+    <!-- Compare Panel -->
+    <div class="compare-panel" id="comparePanel" style="margin-bottom:20px">
+      <div class="compare-header">
+        <div>
+          <div class="compare-header-title">📊 Shift Overlap Comparison</div>
+          <div class="compare-header-sub" id="compareHeaderSub">Select 2 or more shifts below to compare</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap">View axis as:</span>
+            <select id="compareAxisTzSelect" onchange="onCompareAxisTzChange()" style="font-size:12px;padding:5px 10px"></select>
+          </div>
+          <button class="btn" onclick="clearCompare()">Clear Selection</button>
+        </div>
+      </div>
+      <div class="compare-body" id="compareBody">
+        <div class="compare-empty">Tick the checkboxes next to any shifts below to see their overlap here.</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="section-title" style="margin-bottom:4px">⚙️ Shift Configuration</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Adjust shift times per team. Tick cities to compare their shift windows side-by-side.</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#16a34a;font-family:'DM Mono',monospace"><div style="width:10px;height:10px;border-radius:2px;background:#16a34a;opacity:0.8"></div>≤10h — OK</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#d97706;font-family:'DM Mono',monospace"><div style="width:10px;height:10px;border-radius:2px;background:#d97706;opacity:0.8"></div>11–12h — Long</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#dc2626;font-family:'DM Mono',monospace"><div style="width:10px;height:10px;border-radius:2px;background:#dc2626;opacity:0.8"></div>≥14h — Excess</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="compareCountBadge" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);display:none">
+            <span id="compareCountNum">0</span> selected
+          </div>
+          <button class="btn" id="compareToggleBtn" onclick="toggleCompareMode()">☑ Compare Shifts</button>
+          <button class="btn" onclick="resetShifts()">Reset Defaults</button>
+        </div>
+      </div>
+      <div class="shift-rows" id="shiftRowsManage"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ CUSTOM TZ MANAGER MODAL ══ -->
+<div class="tz-manager-overlay" id="tzManagerOverlay" onclick="closeTzManager(event)">
+  <div class="tz-manager-modal">
+    <div class="tz-manager-header">
+      <div>
+        <h3>🌍 Manage Timezones</h3>
+        <p>Add or remove timezone cards · Home zones stay protected</p>
+      </div>
+      <button class="tz-close-btn" onclick="closeTzManager()">✕</button>
+    </div>
+    <div class="tz-search-wrap">
+      <div class="tz-search-row">
+        <input type="text" class="tz-search-input" id="tzSearchInput" placeholder="Search city or timezone (e.g. Tokyo, Asia/Kolkata)…" oninput="onTzSearch(this.value)" autocomplete="off">
+        <button class="btn" onclick="addCustomTzFromInput()">+ Add</button>
+      </div>
+      <div class="tz-search-results" id="tzSearchResults"></div>
+    </div>
+    <div class="tz-list-body" id="tzListBody"></div>
+  </div>
+</div>
+
+<script>
+const ZONES = [
+  { id: 'mex',  name: 'Mexico City',   tz: 'America/Mexico_City',  utcOffset: -6 },
+  { id: 'phi',  name: 'Philadelphia',  tz: 'America/New_York',     utcOffset: -5 },
+  { id: 'lon',  name: 'London',        tz: 'Europe/London',        utcOffset: 0  },
+  { id: 'fra',  name: 'Frankfurt',     tz: 'Europe/Berlin',        utcOffset: 1  },
+  { id: 'par',  name: 'Paris',         tz: 'Europe/Paris',         utcOffset: 1  },
+  { id: 'jhb',  name: 'Johannesburg',  tz: 'Africa/Johannesburg',  utcOffset: 2  },
+  { id: 'dxb',  name: 'Dubai',         tz: 'Asia/Dubai',           utcOffset: 4  },
+  { id: 'mau',  name: 'Port Louis',    tz: 'Indian/Mauritius',     utcOffset: 4  },
+  { id: 'sin',  name: 'Singapore',     tz: 'Asia/Singapore',       utcOffset: 8  },
+  { id: 'mnl',  name: 'Manila',        tz: 'Asia/Manila',          utcOffset: 8  },
+  { id: 'syd',  name: 'Sydney',        tz: 'Australia/Sydney',     utcOffset: 11 },
+  { id: 'auk',  name: 'Auckland',      tz: 'Pacific/Auckland',     utcOffset: 13 },
+];
+
+const DEFAULT_LOCAL_START = 8;
+const DEFAULT_DURATION = 10;
+const SHIFT_STORAGE_KEY = 'global-shift-manager-shifts';
+const COVERAGE_STORAGE_KEY = 'global-shift-manager-coverage';
+const HOME_TZ_STORAGE_KEY = 'global-shift-manager-home-tz';
+const CUSTOM_TZ_STORAGE_KEY = 'global-shift-manager-custom-zones';
+const HIDDEN_TZ_STORAGE_KEY = 'global-shift-manager-hidden-zones';
+
+function getDefaultShiftState() {
+  const state = {};
+  ZONES.forEach(z => {
+    state[z.id] = { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
+  });
+  return state;
+}
+
+function getDefaultCoverageState() {
+  return { gapStart: '02:00', gapEnd: '06:00' };
+}
+
+function loadShiftState() {
+  try {
+    const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    const candidate = saved && typeof saved === 'object' && saved.shifts ? saved.shifts : saved;
+    const nextState = getDefaultShiftState();
+
+    if (!candidate || typeof candidate !== 'object') {
+      return nextState;
+    }
+
+    ZONES.forEach(z => {
+      const existing = candidate[z.id] || {};
+      const localStart = Number(existing.localStart);
+      const duration = Number(existing.duration);
+
+      nextState[z.id] = {
+        localStart: Number.isFinite(localStart) && localStart >= 0 && localStart <= 23 ? localStart : DEFAULT_LOCAL_START,
+        duration: Number.isFinite(duration) && duration >= 1 && duration <= 24 ? duration : DEFAULT_DURATION
+      };
+    });
+
+    return nextState;
+  } catch (error) {
+    return getDefaultShiftState();
+  }
+}
+
+function loadCoverageState() {
+  try {
+    const raw = localStorage.getItem(COVERAGE_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    const defaults = getDefaultCoverageState();
+
+    return {
+      gapStart: typeof saved.gapStart === 'string' && /^\d{1,2}:\d{2}$/.test(saved.gapStart) ? saved.gapStart : defaults.gapStart,
+      gapEnd: typeof saved.gapEnd === 'string' && /^\d{1,2}:\d{2}$/.test(saved.gapEnd) ? saved.gapEnd : defaults.gapEnd
+    };
+  } catch (error) {
+    return getDefaultCoverageState();
+  }
+}
+
+function saveShiftState() {
+  try {
+    localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify({ shifts, savedAt: Date.now() }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function saveCoverageState() {
+  try {
+    localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify({
+      gapStart: document.getElementById('gapStart')?.value || getDefaultCoverageState().gapStart,
+      gapEnd: document.getElementById('gapEnd')?.value || getDefaultCoverageState().gapEnd
+    }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadHomeTzState() {
+  try {
+    const raw = localStorage.getItem(HOME_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    const next = {
+      tl: typeof saved.tl === 'string' ? saved.tl : 'sin',
+      mg: typeof saved.mg === 'string' ? saved.mg : 'sin'
+    };
+    return next;
+  } catch (error) {
+    return { tl: 'sin', mg: 'sin' };
+  }
+}
+
+function saveHomeTzState() {
+  try {
+    localStorage.setItem(HOME_TZ_STORAGE_KEY, JSON.stringify({
+      tl: wcState.tl.homeTzId,
+      mg: wcState.mg.homeTzId
+    }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadCustomZones() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(saved)) return [];
+
+    return saved.filter(item => item && typeof item === 'object' && typeof item.tz === 'string' && isValidTz(item.tz))
+      .map(item => ({
+        id: typeof item.id === 'string' ? item.id : 'custom_' + item.tz.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
+        name: typeof item.name === 'string' ? item.name : item.tz.split('/').pop().replace(/_/g, ' '),
+        tz: item.tz,
+        utcOffset: Number.isFinite(Number(item.utcOffset)) ? Number(item.utcOffset) : getTzOffset(item.tz)
+      }));
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveCustomZones() {
+  try {
+    localStorage.setItem(CUSTOM_TZ_STORAGE_KEY, JSON.stringify(customZones));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadHiddenZoneIds() {
+  try {
+    const raw = localStorage.getItem(HIDDEN_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(saved) ? saved.filter(id => ZONES.some(z => z.id === id)) : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function saveHiddenZoneIds() {
+  try {
+    localStorage.setItem(HIDDEN_TZ_STORAGE_KEY, JSON.stringify([...hiddenZoneIds]));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+let shifts = loadShiftState();
+let coverageState = loadCoverageState();
+let homeTzState = loadHomeTzState();
+
+let editMode = false;
+let gapHours = new Set();
+let compareMode = false;
+let compareSelected = new Set(); // set of tzIds
+let compareAxisTzId = 'utc'; // 'utc' or a tzId
+
+// ── Helpers ──
+function getUTCOffsetForTz(tzId) {
+  // Get real UTC offset using Intl, rounded to nearest 0.5h
+  const z = getAllDisplayZones().find(z => z.id === tzId);
+  if (!z) return 0;
+  try {
+    const now = new Date();
+    // Use a fixed reference time to avoid DST edge cases at current minute
+    const ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0));
+    const utcDate  = new Date(ref.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const localDate = new Date(ref.toLocaleString('en-US', { timeZone: z.tz }));
+    const diffMs = localDate - utcDate;
+    // Round to nearest 15 minutes to handle fractional offsets cleanly
+    return Math.round(diffMs / 900000) * 0.25;
+  } catch(e) { return z.utcOffset; }
+}
+
+function localToUtc(localHour, utcOffset) {
+  // Work in minutes to handle fractional offsets (e.g. India UTC+5:30)
+  const localMins = localHour * 60;
+  const utcMins = localMins - utcOffset * 60;
+  return ((utcMins % 1440) + 1440) % 1440 / 60; // returns float hours
+}
+
+function getShiftUtcHours(tzId) {
+  const s = shifts[tzId] || { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
+  const offset = getUTCOffsetForTz(tzId);
+  // Convert local start to UTC minutes
+  const localStartMins = s.localStart * 60;
+  const utcStartMins = ((localStartMins - offset * 60) % 1440 + 1440) % 1440;
+  const hours = new Set();
+  for (let i = 0; i < s.duration; i++) {
+    // Each hour slot: the UTC hour that contains utcStartMins + i*60
+    hours.add(Math.floor((utcStartMins + i * 60) % 1440 / 60));
+  }
+  return hours;
+}
+
+function getCurrentUtcHour() { return new Date().getUTCHours(); }
+
+function getLocalTimeStr(tzId) {
+  const z = ZONES.find(z => z.id === tzId);
+  try { return new Date().toLocaleTimeString('en-GB', { timeZone: z.tz, hour: '2-digit', minute: '2-digit' }); }
+  catch(e) { return '--:--'; }
+}
+
+// Get local time in a timezone given a UTC minutes-of-day
+function utcMinutesToLocal(utcMinutes, tzId) {
+  const offset = getUTCOffsetForTz(tzId);
+  const localMins = ((utcMinutes + offset * 60) % 1440 + 1440) % 1440;
+  return localMins;
+}
+
+function minutesToTimeStr(mins, use12h = true) {
+  const h24 = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  if (!use12h) return `${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const ampm = h24 < 12 ? 'AM' : 'PM';
+  const h12 = h24 % 12 || 12;
+  return { h: String(h12).padStart(2,'0'), m: String(m).padStart(2,'0'), ampm };
+}
+
+function getDayLabel(localMins, homeMins) {
+  const localDay = Math.floor(((localMins / 60) + 24) / 24) % 7;
+  const homeDay  = Math.floor(((homeMins  / 60) + 24) / 24) % 7;
+  // Simpler: compare date
+  return null; // handled via date string
+}
+
+function getDateStr(tzId, utcMs) {
+  const z = getAllDisplayZones().find(z => z.id === tzId);
+  try {
+    return new Date(utcMs).toLocaleDateString('en-GB', { timeZone: z.tz, weekday: 'short', day: 'numeric', month: 'short' });
+  } catch(e) { return ''; }
+}
+
+function isOnShift(tzId, utcHour) {
+  return getShiftUtcHours(tzId).has(utcHour);
+}
+
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── World Clock: per-instance state ──
+// Each instance (id: 'tl' or 'mg') has its own homeTzId and scrubMinutes
+const wcState = {
+  tl: { homeTzId: homeTzState.tl || 'sin', scrubMinutes: null },
+  mg: { homeTzId: homeTzState.mg || 'sin', scrubMinutes: null },
+};
+
+function populateAllWcSelects() {
+  ['tl', 'mg'].forEach(id => {
+    const sel = document.getElementById(`homeTzSelect_${id}`);
+    if (!sel) return;
+    sel.innerHTML = '';
+    getAllDisplayZones().forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z.id;
+      opt.textContent = z.name;
+      if (z.id === wcState[id].homeTzId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function onHomeTzChange(id) {
+  wcState[id].homeTzId = document.getElementById(`homeTzSelect_${id}`).value;
+  saveHomeTzState();
+  renderWcInstance(id);
+  renderTzList();
+}
+
+function useNow(id) {
+  wcState[id].scrubMinutes = null;
+  const now = new Date();
+  const homeOffset = getUTCOffsetForTz(wcState[id].homeTzId);
+  const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const localMins = ((utcMins + homeOffset * 60) % 1440 + 1440) % 1440;
+  const scrubEl = document.getElementById(`wcScrubber_${id}`);
+  if (scrubEl) { scrubEl.value = localMins; updateWcScrubFill(id, localMins); }
+  renderWcInstance(id);
+}
+
+function onWcScrub(id, val) {
+  wcState[id].scrubMinutes = parseInt(val);
+  updateWcScrubFill(id, parseInt(val));
+  renderWcInstance(id);
+}
+
+function updateWcScrubFill(id, val) {
+  const el = document.getElementById(`wcScrubber_${id}`);
+  if (el) el.style.setProperty('--pct', (val / 1439 * 100).toFixed(1) + '%');
+}
+
+function toggleWcExpand(bar) {
+  // Find the sibling wc-expanded and chevron
+  const wrap = bar.closest('.wc-header');
+  const exp = wrap.querySelector('.wc-expanded');
+  const chevron = wrap.querySelector('.wc-chevron');
+  const isOpen = exp.classList.contains('open');
+  exp.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+}
+
+// ── Render one WC instance ──
+function renderWcInstance(id) {
+  const state = wcState[id];
+  const now = new Date();
+  const homeOffset = getUTCOffsetForTz(state.homeTzId);
+
+  let homeLocalMins;
+  if (state.scrubMinutes !== null) {
+    homeLocalMins = state.scrubMinutes;
+  } else {
+    const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+    homeLocalMins = ((utcMins + homeOffset * 60) % 1440 + 1440) % 1440;
+    const scrubEl = document.getElementById(`wcScrubber_${id}`);
+    if (scrubEl) { scrubEl.value = homeLocalMins; updateWcScrubFill(id, homeLocalMins); }
+  }
+
+  const utcMins = ((homeLocalMins - homeOffset * 60) % 1440 + 1440) % 1440;
+  const utcHour = Math.floor(utcMins / 60);
+
+  const todayUTC = new Date(now);
+  todayUTC.setUTCHours(utcHour, Math.round(utcMins % 60), 0, 0);
+
+  const homeT = minutesToTimeStr(homeLocalMins);
+  const homeName = getAllDisplayZones().find(z => z.id === state.homeTzId)?.name || state.homeTzId;
+  const dispEl = document.getElementById(`wcScrubDisplay_${id}`);
+  if (dispEl) dispEl.textContent = `${homeT.h}:${homeT.m} ${homeT.ampm} — ${homeName}`;
+
+  const homeDateStr = getDateStr(state.homeTzId, todayUTC.getTime());
+
+  // Mini clocks (collapsed bar)
+  let miniHtml = '';
+  // Full cards (expanded)
+  let cardsHtml = '';
+
+  getOrderedZonesForHome(state.homeTzId).forEach(z => {
+    const offset = getUTCOffsetForTz(z.id);
+    const localMins = ((utcMins + offset * 60) % 1440 + 1440) % 1440;
+    const t = minutesToTimeStr(localMins);
+    const isHome = z.id === state.homeTzId;
+    const onShift = isOnShift(z.id, utcHour);
+    const dateStr = getDateStr(z.id, todayUTC.getTime());
+    const diffH = Math.round(offset - homeOffset);
+
+    // Mini
+    miniHtml += `<div class="wc-mini-item">
+      <span class="wc-mini-city">${z.name.split(' ')[0]}</span>
+      <span class="wc-mini-time ${onShift ? 'on-shift-mini' : ''}">${t.h}:${t.m}</span>
+      <span class="wc-mini-ampm">${t.ampm}</span>
+    </div>`;
+
+    // Full card
+    let diffHtml = diffH > 0 ? `<div class="wc-day-diff ahead">+${diffH}h ahead</div>`
+                 : diffH < 0 ? `<div class="wc-day-diff behind">${diffH}h behind</div>`
+                 : `<div class="wc-day-diff same">same tz</div>`;
+    const pip = onShift
+      ? `<div class="wc-pip on"><div class="wc-pip-dot on"></div>ON SHIFT</div>`
+      : `<div class="wc-pip off"><div class="wc-pip-dot off"></div>OFF</div>`;
+
+    cardsHtml += `<div class="wc-card ${isHome ? 'is-home' : ''}">
+      <div class="wc-card-city">${z.name}</div>
+      <div class="wc-card-tz">${z.tz}</div>
+      <div class="wc-card-time">${t.h}:${t.m}<span class="wc-card-ampm">${t.ampm}</span></div>
+      <div class="wc-card-date">${dateStr}</div>
+      ${diffHtml}
+      <div class="wc-card-offset">UTC <span>${offset >= 0 ? '+' : ''}${offset}</span></div>
+      ${pip}
+    </div>`;
+  });
+
+  const miniEl = document.getElementById(`wcMiniClocks_${id}`);
+  if (miniEl) miniEl.innerHTML = miniHtml;
+  const cardsEl = document.getElementById(`wcCards_${id}`);
+  if (cardsEl) cardsEl.innerHTML = cardsHtml;
+}
+
+function renderAllWc() {
+  renderWcInstance('tl');
+  renderWcInstance('mg');
+}
+
+// ── Timeline Grid ──
+function buildGrid() {
+  const container = document.getElementById('gridContainer');
+  const currentHour = getCurrentUtcHour();
+
+  let html = '<div class="hour-labels"><div class="hour-label" style="text-align:left;font-size:10px;color:var(--muted)">TIMEZONE</div>';
+  for (let h = 0; h < 24; h++) html += `<div class="hour-label">${String(h).padStart(2,'0')}</div>`;
+  html += '</div>';
+
+  ZONES.forEach(z => {
+    const shiftHours = getShiftUtcHours(z.id);
+    const localTime = getLocalTimeStr(z.id);
+
+    html += `<div class="tz-row">
+      <div class="tz-label">
+        <span class="tz-name">${z.name}</span>
+        <span class="tz-time-small">${localTime}</span>
+      </div>`;
+
+    for (let h = 0; h < 24; h++) {
+      const onShift = shiftHours.has(h);
+      const isGap   = gapHours.has(h);
+      const isCurr  = h === currentHour;
+      let cls = 'hour-cell';
+      if (onShift) cls += ' on-shift';
+      if (isGap && !onShift) cls += ' gap';
+      if (isCurr) cls += ' current-hour';
+      html += `<div class="${cls}" data-tz="${z.id}" data-hour="${h}" onclick="cellClick(this)" title="UTC ${String(h).padStart(2,'0')}:00 — ${z.name}"></div>`;
+    }
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function cellClick(cell) {
+  if (!editMode) return;
+  const tzId = cell.dataset.tz;
+  const hour = parseInt(cell.dataset.hour);
+  const offset = getUTCOffsetForTz(tzId);
+  const localHour = ((hour + offset) % 24 + 24) % 24;
+  shifts[tzId].localStart = localHour;
+  saveShiftState();
+  buildGrid();
+  buildShiftRows();
+  findCoverage();
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  const btn = document.getElementById('editModeBtn');
+  btn.textContent = `✏️ Edit Mode: ${editMode ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', editMode);
+}
+
+function resetShifts() {
+  shifts = getDefaultShiftState();
+  saveShiftState();
+  buildGrid();
+  buildShiftRows();
+  buildShiftRowsManage();
+  findCoverage();
+  renderAllWc();
+}
+
+// ── Shift Rows ──
+function shiftRowHtml(z, forManage = false) {
+  const s = shifts[z.id];
+  const startStr = `${String(s.localStart).padStart(2,'0')}:00`;
+  const endHour  = (s.localStart + s.duration) % 24;
+  const endStr   = `${String(endHour).padStart(2,'0')}:00`;
+  const isSelected = compareSelected.has(z.id);
+  const selectedCls = isSelected ? ' compare-selected' : '';
+
+  const checkboxHtml = forManage && compareMode
+    ? `<div class="shift-row-check ${isSelected ? 'checked' : ''}" onclick="toggleCompareSelect('${z.id}')" title="Add to comparison">${isSelected ? '✓' : ''}</div>`
+    : '';
+
+  const dur = s.duration;
+  const durationColor = dur <= 10 ? '#16a34a' : dur <= 12 ? '#d97706' : dur >= 14 ? '#dc2626' : '#6b7c93';
+  const durationBg    = dur <= 10 ? 'rgba(22,163,74,0.08)' : dur <= 12 ? 'rgba(217,119,6,0.08)' : dur >= 14 ? 'rgba(220,38,38,0.08)' : 'var(--surface2)';
+  const durationLabel = dur <= 10 ? '✓ OK' : dur <= 12 ? '⚠ Long' : dur >= 14 ? '✕ Excess' : '—';
+
+  return `<div class="shift-row${selectedCls}" id="srow-${z.id}" style="border-left:3px solid ${durationColor}">
+    ${checkboxHtml}
+    <div class="shift-tz-name">${z.name}</div>
+    <div class="field" style="flex:0 0 auto">
+      <label style="font-size:10px">Start (local)</label>
+      <input type="time" value="${startStr}" onchange="updateShiftStart('${z.id}', this.value)" style="width:118px">
+    </div>
+    <div class="field" style="flex:0 0 auto">
+      <label style="font-size:10px">Hours</label>
+      <input type="number" min="1" max="24" value="${s.duration}" onchange="updateDuration('${z.id}', this.value)" style="width:60px">
+    </div>
+    <div class="shift-duration" style="color:${durationColor}">${startStr}→${endStr}</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;background:${durationBg};color:${durationColor};white-space:nowrap">${dur}h ${durationLabel}</div>
+  </div>`;
+}
+
+function buildShiftRows() {
+  document.getElementById('shiftRows').innerHTML = ZONES.map(z => shiftRowHtml(z, false)).join('');
+}
+
+function buildShiftRowsManage() {
+  document.getElementById('shiftRowsManage').innerHTML = ZONES.map(z => shiftRowHtml(z, true)).join('');
+}
+
+// ── Compare Mode ──
+function toggleCompareMode() {
+  compareMode = !compareMode;
+  const btn = document.getElementById('compareToggleBtn');
+  btn.classList.toggle('active', compareMode);
+  btn.textContent = compareMode ? '☑ Compare: ON' : '☑ Compare Shifts';
+  if (!compareMode) {
+    compareSelected.clear();
+    document.getElementById('comparePanel').classList.remove('visible');
+  }
+  document.getElementById('compareCountBadge').style.display = compareMode ? 'block' : 'none';
+  buildShiftRowsManage();
+  renderCompare();
+}
+
+function toggleCompareSelect(tzId) {
+  if (compareSelected.has(tzId)) {
+    compareSelected.delete(tzId);
+  } else {
+    compareSelected.add(tzId);
+  }
+  document.getElementById('compareCountNum').textContent = compareSelected.size;
+  buildShiftRowsManage();
+  renderCompare();
+}
+
+function clearCompare() {
+  compareSelected.clear();
+  document.getElementById('compareCountNum').textContent = '0';
+  buildShiftRowsManage();
+  renderCompare();
+}
+
+function utcHourToAxisHour(utcH, axisTzId) {
+  // Convert a UTC hour to the display hour in the chosen axis timezone
+  if (axisTzId === 'utc') return utcH;
+  const offset = getUTCOffsetForTz(axisTzId);
+  return Math.floor(((utcH + offset) % 24 + 24) % 24);
+}
+
+function axisHourLabel(displayH) {
+  return String(displayH).padStart(2, '0');
+}
+
+// Build a sorted 24-element display order for a given axis TZ:
+// axis hour 0 = what UTC hour maps to local midnight?
+function getAxisDisplayOrder(axisTzId) {
+  // We want to show hours in display-local order (00 to 23 local time)
+  // For each display slot d (0..23), find the UTC hour that maps to display hour d
+  if (axisTzId === 'utc') return Array.from({length:24}, (_,i) => i); // UTC hour for slot i = i
+  const offset = getUTCOffsetForTz(axisTzId);
+  // displayHour = (utcHour + offset) % 24
+  // utcHour = (displayHour - offset + 24) % 24
+  return Array.from({length:24}, (_, d) => Math.floor(((d - offset) % 24 + 24) % 24));
+}
+
+function buildHourRangesInTz(utcHoursSet, axisTzId) {
+  if (!utcHoursSet || utcHoursSet.size === 0) return 'None';
+  // Convert UTC hours to axis hours, then build ranges
+  const axisTzLabel = axisTzId === 'utc' ? 'UTC' : ZONES.find(z => z.id === axisTzId)?.name || 'UTC';
+  const axisHours = new Set([...utcHoursSet].map(h => utcHourToAxisHour(h, axisTzId)));
+  return buildHourRanges(axisHours).replace(' UTC', ` ${axisTzLabel}`);
+}
+
+function onCompareAxisTzChange() {
+  compareAxisTzId = document.getElementById('compareAxisTzSelect').value;
+  renderCompare();
+}
+
+function populateCompareAxisSelect() {
+  const sel = document.getElementById('compareAxisTzSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  // UTC option first
+  const utcOpt = document.createElement('option');
+  utcOpt.value = 'utc';
+  utcOpt.textContent = 'UTC';
+  if (compareAxisTzId === 'utc') utcOpt.selected = true;
+  sel.appendChild(utcOpt);
+  getAllDisplayZones().forEach(z => {
+    const opt = document.createElement('option');
+    opt.value = z.id;
+    opt.textContent = z.name;
+    if (z.id === compareAxisTzId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderCompare() {
+  const panel = document.getElementById('comparePanel');
+  const body  = document.getElementById('compareBody');
+  const sub   = document.getElementById('compareHeaderSub');
+
+  if (!compareMode || compareSelected.size === 0) {
+    panel.classList.remove('visible');
+    return;
+  }
+
+  panel.classList.add('visible');
+  const selected = ZONES.filter(z => compareSelected.has(z.id));
+  sub.textContent = `Comparing ${selected.map(z => z.name).join(', ')}`;
+
+  // Axis label
+  const axisLabel = compareAxisTzId === 'utc' ? 'UTC' : (ZONES.find(z => z.id === compareAxisTzId)?.name || 'UTC');
+  const axisOffset = compareAxisTzId === 'utc' ? 0 : getUTCOffsetForTz(compareAxisTzId);
+
+  // UTC hours 0-23 in display order (sorted by their local time in axis TZ)
+  // displaySlot[i] = which UTC hour to show in column i
+  const displaySlots = getAxisDisplayOrder(compareAxisTzId);
+
+  // Build hour-by-hour UTC active sets (still computed in UTC)
+  const shiftSets = selected.map(z => ({ z, hours: getShiftUtcHours(z.id) }));
+
+  const allUtcHours = Array.from({length: 24}, (_, i) => i);
+  const overlapHours = new Set(allUtcHours.filter(h => shiftSets.every(s => s.hours.has(h))));
+  const anyActiveHours = new Set(allUtcHours.filter(h => shiftSets.some(s => s.hours.has(h))));
+
+  // Ruler labels in axis TZ
+  let rulerHtml = `<div class="compare-ruler">
+    <div class="compare-ruler-spacer"></div>
+    <div class="compare-ruler-ticks">
+      ${displaySlots.map(utcH => {
+        const displayH = Math.floor(((utcH + axisOffset) % 24 + 24) % 24);
+        return `<span title="UTC ${String(utcH).padStart(2,'0')}:00">${String(displayH).padStart(2,'0')}</span>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // Axis TZ label row
+  let axisLabelHtml = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
+    <div style="width:120px;flex-shrink:0;font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px">Axis: ${axisLabel}</div>
+    <div style="flex:1;font-size:9px;font-family:'DM Mono',monospace;color:var(--muted)">Hours shown in ${axisLabel} local time${compareAxisTzId !== 'utc' ? ` (UTC${axisOffset >= 0 ? '+' : ''}${axisOffset})` : ''}</div>
+  </div>`;
+
+  // Legend
+  let legendHtml = `<div class="ol-legend">
+    <div class="ol-legend-item"><div class="ol-dot" style="background:var(--accent);opacity:0.75"></div> Active shift</div>
+    <div class="ol-legend-item"><div class="ol-dot" style="background:#f59e0b"></div> Overlap (all selected)</div>
+    <div class="ol-legend-item"><div class="ol-dot" style="background:var(--surface2);border:1px solid var(--border)"></div> Off shift</div>
+  </div>`;
+
+  // Per-shift bars — columns ordered by axis TZ display slots
+  let barsHtml = shiftSets.map(({ z, hours }) => {
+    const s = shifts[z.id];
+    const startStr = `${String(s.localStart).padStart(2,'0')}:00`;
+    const endHour  = (s.localStart + s.duration) % 24;
+    const endStr   = `${String(endHour).padStart(2,'0')}:00`;
+    const cells = displaySlots.map(utcH => {
+      const active  = hours.has(utcH);
+      const overlap = active && overlapHours.has(utcH);
+      const cls = overlap ? 'compare-cell overlap' : active ? 'compare-cell active' : 'compare-cell';
+      const displayH = Math.floor(((utcH + axisOffset) % 24 + 24) % 24);
+      return `<div class="${cls}" title="${axisLabel} ${String(displayH).padStart(2,'0')}:00 (UTC ${String(utcH).padStart(2,'0')}:00)"></div>`;
+    }).join('');
+    return `<div class="compare-shift-row">
+      <div class="compare-shift-label">${z.name}<small>${startStr} → ${endStr} local</small></div>
+      <div class="compare-bar-wrap">${cells}</div>
+    </div>`;
+  }).join('');
+
+  // Stats
+  const totalOverlapHours = overlapHours.size;
+  const coveredHours = anyActiveHours.size;
+  const uncoveredHours = 24 - coveredHours;
+
+  // Pairwise overlaps — reported in axis TZ
+  let pairwiseHtml = '';
+  if (selected.length >= 2) {
+    const pairs = [];
+    for (let i = 0; i < shiftSets.length; i++) {
+      for (let j = i + 1; j < shiftSets.length; j++) {
+        const pairUtcHours = new Set(allUtcHours.filter(h => shiftSets[i].hours.has(h) && shiftSets[j].hours.has(h)));
+        if (pairUtcHours.size > 0) {
+          pairs.push(`<span style="color:var(--text);font-weight:600">${shiftSets[i].z.name} ∩ ${shiftSets[j].z.name}:</span> ${buildHourRangesInTz(pairUtcHours, compareAxisTzId)}`);
+        } else {
+          pairs.push(`<span style="color:var(--muted)">${shiftSets[i].z.name} ∩ ${shiftSets[j].z.name}: no overlap</span>`);
+        }
+      }
+    }
+    if (pairs.length > 0) {
+      pairwiseHtml = `<div class="compare-stat" style="flex:3">
+        <div class="compare-stat-label">Pairwise overlaps (${axisLabel})</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;margin-top:6px;display:flex;flex-direction:column;gap:4px">
+          ${pairs.join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  const uncoveredRangeStr = buildHourRangesInTz(new Set(allUtcHours.filter(h => !anyActiveHours.has(h))), compareAxisTzId);
+  const overlapRangeStr   = buildHourRangesInTz(overlapHours, compareAxisTzId);
+
+  const overlapValCls = totalOverlapHours > 4 ? 'good' : totalOverlapHours > 0 ? 'warn' : 'bad';
+  const gapValCls = uncoveredHours === 0 ? 'good' : uncoveredHours < 6 ? 'warn' : 'bad';
+
+  const statsHtml = `<div class="compare-stats">
+    <div class="compare-stat">
+      <div class="compare-stat-label">Teams compared</div>
+      <div class="compare-stat-value">${selected.length}</div>
+    </div>
+    <div class="compare-stat">
+      <div class="compare-stat-label">Full overlap</div>
+      <div class="compare-stat-value ${overlapValCls}">${totalOverlapHours}h</div>
+    </div>
+    <div class="compare-stat">
+      <div class="compare-stat-label">Combined coverage</div>
+      <div class="compare-stat-value">${coveredHours}h</div>
+    </div>
+    <div class="compare-stat">
+      <div class="compare-stat-label">Uncovered</div>
+      <div class="compare-stat-value ${gapValCls}">${uncoveredHours}h</div>
+    </div>
+    ${uncoveredHours > 0 ? `<div class="compare-stat" style="flex:2">
+      <div class="compare-stat-label">Uncovered windows (${axisLabel})</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gap);margin-top:6px">${uncoveredRangeStr}</div>
+    </div>` : `<div class="compare-stat" style="flex:2">
+      <div class="compare-stat-label">Coverage</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#16a34a;margin-top:6px">✓ Full 24h covered</div>
+    </div>`}
+    ${totalOverlapHours > 0 ? `<div class="compare-stat" style="flex:2">
+      <div class="compare-stat-label">Overlap window${overlapHours.size > 1 ? 's' : ''} (${axisLabel})</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:#d97706;margin-top:6px">${overlapRangeStr}</div>
+    </div>` : ''}
+    ${pairwiseHtml}
+  </div>`;
+
+  body.innerHTML = axisLabelHtml + legendHtml + rulerHtml + barsHtml + statsHtml;
+}
+
+function buildHourRanges(hoursSet) {
+  if (!hoursSet || hoursSet.size === 0) return 'None';
+  const sorted = [...hoursSet].sort((a, b) => a - b);
+  const ranges = [];
+  let start = sorted[0], prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== prev + 1) {
+      const endH = (prev + 1) % 24;
+      ranges.push(`${String(start).padStart(2,'0')}:00–${String(endH).padStart(2,'0')}:00`);
+      start = sorted[i];
+    }
+    prev = sorted[i];
+  }
+  const endH = (prev + 1) % 24;
+  ranges.push(`${String(start).padStart(2,'0')}:00–${String(endH).padStart(2,'0')}:00`);
+  return ranges.join(' · ') + ' UTC';
+}
+
+function updateShiftStart(tzId, timeStr) {
+  const [h] = timeStr.split(':').map(Number);
+  shifts[tzId].localStart = h;
+  saveShiftState();
+  buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
+}
+
+function updateDuration(tzId, val) {
+  shifts[tzId].duration = Math.max(1, Math.min(24, parseInt(val) || 10));
+  saveShiftState();
+  buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
+}
+
+function hydrateCoverageInputs() {
+  const startInput = document.getElementById('gapStart');
+  const endInput = document.getElementById('gapEnd');
+  if (startInput) startInput.value = coverageState.gapStart;
+  if (endInput) endInput.value = coverageState.gapEnd;
+}
+
+// ── Gap Finder ──
+function findCoverage() {
+  const startInput = document.getElementById('gapStart');
+  const endInput = document.getElementById('gapEnd');
+  const startStr = startInput ? startInput.value : coverageState.gapStart;
+  const endStr = endInput ? endInput.value : coverageState.gapEnd;
+
+  if (!startStr || !endStr) return;
+
+  coverageState = { gapStart: startStr, gapEnd: endStr };
+  if (startInput) startInput.value = startStr;
+  if (endInput) endInput.value = endStr;
+  saveCoverageState();
+
+  const [sh] = startStr.split(':').map(Number);
+  const [eh] = endStr.split(':').map(Number);
+  let gapStart = sh, gapEnd = eh;
+  if (gapEnd <= gapStart) gapEnd += 24;
+
+  gapHours = new Set();
+  for (let h = 0; h < 24; h++) {
+    if (h >= gapStart && h < gapEnd) gapHours.add(h);
+    if (gapEnd > 24 && h < gapEnd - 24) gapHours.add(h);
+  }
+  buildGrid();
+
+  const alertBar = document.getElementById('alertBar');
+  let html = '', anyCanCover = false;
+
+  ZONES.forEach(z => {
+    const shiftHours = getShiftUtcHours(z.id);
+    let covered = 0, total = 0;
+    for (let h = 0; h < 24; h++) {
+      if (gapHours.has(h)) { total++; if (shiftHours.has(h)) covered++; }
+    }
+    const canCover = covered > 0;
+    if (canCover) anyCanCover = true;
+    const pct = total > 0 ? Math.round(covered / total * 100) : 0;
+    const badge = canCover
+      ? `<span class="coverage-badge badge-yes">${pct}% COVERED</span>`
+      : `<span class="coverage-badge badge-no">OFF SHIFT</span>`;
+    html += `<div class="coverage-item ${canCover ? 'can-cover' : 'cannot-cover'}">
+      <div>
+        <div style="font-weight:700;font-size:13px">${z.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${covered}/${total} hours covered</div>
+      </div>
+      ${badge}
+    </div>`;
+  });
+
+  if (!anyCanCover) {
+    alertBar.textContent = `⚠ No team scheduled during UTC ${startStr}–${endStr}. Shift adjustments required.`;
+    alertBar.classList.add('show');
+  } else { alertBar.classList.remove('show'); }
+
+  document.getElementById('coverageResults').innerHTML = html || '<div style="font-size:13px;color:var(--muted);font-family:DM Mono,monospace;padding:10px">Set a gap window above.</div>';
+}
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('utcClock').innerHTML = `<div class="live-dot"></div>UTC ${hh}:${mm}:${ss}`;
+}
+
+// ── Custom Timezone Manager ──
+
+// Extra timezones available to add (beyond the preset ZONES list)
+const EXTRA_TZ_DB = [
+  { name: 'Tokyo', tz: 'Asia/Tokyo' },
+  { name: 'Seoul', tz: 'Asia/Seoul' },
+  { name: 'Shanghai', tz: 'Asia/Shanghai' },
+  { name: 'Hong Kong', tz: 'Asia/Hong_Kong' },
+  { name: 'Taipei', tz: 'Asia/Taipei' },
+  { name: 'Kolkata', tz: 'Asia/Kolkata' },
+  { name: 'Colombo', tz: 'Asia/Colombo' },
+  { name: 'Dhaka', tz: 'Asia/Dhaka' },
+  { name: 'Karachi', tz: 'Asia/Karachi' },
+  { name: 'Kathmandu', tz: 'Asia/Kathmandu' },
+  { name: 'Yangon', tz: 'Asia/Rangoon' },
+  { name: 'Bangkok', tz: 'Asia/Bangkok' },
+  { name: 'Jakarta', tz: 'Asia/Jakarta' },
+  { name: 'Kuala Lumpur', tz: 'Asia/Kuala_Lumpur' },
+  { name: 'Riyadh', tz: 'Asia/Riyadh' },
+  { name: 'Tehran', tz: 'Asia/Tehran' },
+  { name: 'Baghdad', tz: 'Asia/Baghdad' },
+  { name: 'Kabul', tz: 'Asia/Kabul' },
+  { name: 'Tashkent', tz: 'Asia/Tashkent' },
+  { name: 'Almaty', tz: 'Asia/Almaty' },
+  { name: 'Islamabad', tz: 'Asia/Karachi' },
+  { name: 'Beirut', tz: 'Asia/Beirut' },
+  { name: 'Istanbul', tz: 'Europe/Istanbul' },
+  { name: 'Athens', tz: 'Europe/Athens' },
+  { name: 'Warsaw', tz: 'Europe/Warsaw' },
+  { name: 'Stockholm', tz: 'Europe/Stockholm' },
+  { name: 'Amsterdam', tz: 'Europe/Amsterdam' },
+  { name: 'Brussels', tz: 'Europe/Brussels' },
+  { name: 'Zurich', tz: 'Europe/Zurich' },
+  { name: 'Rome', tz: 'Europe/Rome' },
+  { name: 'Madrid', tz: 'Europe/Madrid' },
+  { name: 'Lisbon', tz: 'Europe/Lisbon' },
+  { name: 'Dublin', tz: 'Europe/Dublin' },
+  { name: 'Helsinki', tz: 'Europe/Helsinki' },
+  { name: 'Oslo', tz: 'Europe/Oslo' },
+  { name: 'Copenhagen', tz: 'Europe/Copenhagen' },
+  { name: 'Kiev', tz: 'Europe/Kiev' },
+  { name: 'Moscow', tz: 'Europe/Moscow' },
+  { name: 'Cairo', tz: 'Africa/Cairo' },
+  { name: 'Lagos', tz: 'Africa/Lagos' },
+  { name: 'Nairobi', tz: 'Africa/Nairobi' },
+  { name: 'Accra', tz: 'Africa/Accra' },
+  { name: 'Addis Ababa', tz: 'Africa/Addis_Ababa' },
+  { name: 'Casablanca', tz: 'Africa/Casablanca' },
+  { name: 'Dar es Salaam', tz: 'Africa/Dar_es_Salaam' },
+  { name: 'Khartoum', tz: 'Africa/Khartoum' },
+  { name: 'New York', tz: 'America/New_York' },
+  { name: 'Chicago', tz: 'America/Chicago' },
+  { name: 'Denver', tz: 'America/Denver' },
+  { name: 'Los Angeles', tz: 'America/Los_Angeles' },
+  { name: 'Toronto', tz: 'America/Toronto' },
+  { name: 'Vancouver', tz: 'America/Vancouver' },
+  { name: 'São Paulo', tz: 'America/Sao_Paulo' },
+  { name: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
+  { name: 'Bogotá', tz: 'America/Bogota' },
+  { name: 'Lima', tz: 'America/Lima' },
+  { name: 'Santiago', tz: 'America/Santiago' },
+  { name: 'Caracas', tz: 'America/Caracas' },
+  { name: 'Panama', tz: 'America/Panama' },
+  { name: 'Havana', tz: 'America/Havana' },
+  { name: 'Honolulu', tz: 'Pacific/Honolulu' },
+  { name: 'Anchorage', tz: 'America/Anchorage' },
+  { name: 'Fiji', tz: 'Pacific/Fiji' },
+  { name: 'Guam', tz: 'Pacific/Guam' },
+  { name: 'Brisbane', tz: 'Australia/Brisbane' },
+  { name: 'Melbourne', tz: 'Australia/Melbourne' },
+  { name: 'Perth', tz: 'Australia/Perth' },
+  { name: 'Adelaide', tz: 'Australia/Adelaide' },
+  { name: 'Darwin', tz: 'Australia/Darwin' },
+];
+
+// Custom timezones added by the user and preset zones hidden from the cards.
+let customZones = loadCustomZones(); // array of { id, name, tz, utcOffset }
+let hiddenZoneIds = loadHiddenZoneIds();
+
+function getAllDisplayZones() {
+  return [...ZONES.filter(zone => !hiddenZoneIds.has(zone.id)), ...customZones];
+}
+
+// Linear display order: behind -> home -> same offset -> ahead.
+function getOrderedZonesForHome(homeTzId) {
+  const displayZones = getAllDisplayZones();
+  const fallbackId = displayZones.some(zone => zone.id === 'sin') ? 'sin' : displayZones[0]?.id;
+  const homeId = homeTzId && displayZones.some(zone => zone.id === homeTzId) ? homeTzId : fallbackId;
+  if (!homeId) return [];
+
+  const homeOffset = getUTCOffsetForTz(homeId);
+  const allZones = displayZones.map((zone, index) => {
+    const offset = getUTCOffsetForTz(zone.id);
+    return { ...zone, offset, diff: offset - homeOffset, sourceOrder: index };
+  });
+
+  const homeZone = allZones.find(zone => zone.id === homeId) || allZones[0];
+  const left = allZones
+    .filter(zone => zone.id !== homeId && zone.diff < 0)
+    .sort((a, b) => (a.diff - b.diff) || (a.sourceOrder - b.sourceOrder));
+  const sameOffset = allZones
+    .filter(zone => zone.id !== homeId && zone.diff === 0)
+    .sort((a, b) => a.sourceOrder - b.sourceOrder);
+  const ahead = allZones
+    .filter(zone => zone.id !== homeId && zone.diff > 0)
+    .sort((a, b) => (a.diff - b.diff) || (a.sourceOrder - b.sourceOrder));
+
+  const ordered = [...left, homeZone, ...sameOffset, ...ahead];
+  return ordered.filter(Boolean);
+}
+
+function openTzManager() {
+  document.getElementById('tzManagerOverlay').classList.add('open');
+  document.getElementById('tzSearchInput').value = '';
+  document.getElementById('tzSearchResults').classList.remove('visible');
+  renderTzList();
+}
+
+function closeTzManager(event) {
+  if (event && event.target !== document.getElementById('tzManagerOverlay')) return;
+  document.getElementById('tzManagerOverlay').classList.remove('open');
+}
+
+function getTzOffset(tzStr) {
+  try {
+    const now = new Date();
+    const ref = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0));
+    const utcDate  = new Date(ref.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const localDate = new Date(ref.toLocaleString('en-US', { timeZone: tzStr }));
+    return Math.round((localDate - utcDate) / 900000) * 0.25;
+  } catch(e) { return 0; }
+}
+
+function isValidTz(tzStr) {
+  try { Intl.DateTimeFormat('en', { timeZone: tzStr }); return true; }
+  catch(e) { return false; }
+}
+
+function getLocalTimeFull(tzStr) {
+  try {
+    return new Date().toLocaleTimeString('en-GB', { timeZone: tzStr, hour: '2-digit', minute: '2-digit' });
+  } catch(e) { return '--:--'; }
+}
+
+function isZoneAdded(tzStr) {
+  return getAllDisplayZones().some(z => z.tz === tzStr);
+}
+
+function getTimezoneCatalog() {
+  return [...ZONES, ...EXTRA_TZ_DB].filter((zone, index, zones) =>
+    zones.findIndex(candidate => candidate.tz === zone.tz) === index
+  );
+}
+
+function renderTzList() {
+  const body = document.getElementById('tzListBody');
+  const homeTzId = wcState.mg.homeTzId || 'sin';
+  const orderedZones = getOrderedZonesForHome(homeTzId);
+  const homeName = getAllDisplayZones().find(z => z.id === homeTzId)?.name || 'Home TZ';
+
+  let html = `<div class="tz-list-section-title">Relative to ${homeName} (${orderedZones.length} zones)</div>`;
+
+  orderedZones.forEach(z => {
+    const offset = getUTCOffsetForTz(z.id);
+    const localTime = getLocalTimeFull(z.tz);
+    const isHome = z.id === homeTzId;
+    const diff = offset - getUTCOffsetForTz(homeTzId);
+    const diffLabel = isHome ? 'Home TZ' : `${diff >= 0 ? '+' : ''}${diff}h`;
+    const isProtectedHome = Object.values(wcState).some(state => state.homeTzId === z.id);
+
+    html += `<div class="tz-list-item" style="${isHome ? 'border-color: var(--accent); background: rgba(0,119,204,0.05);' : ''}">
+      <div class="tz-list-item-icon">${isHome ? '🏠' : '📍'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="tz-list-item-name">${z.name}${isHome ? ' (Home)' : ''}</div>
+        <div class="tz-list-item-tz">${z.tz}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:90px;">
+        <div class="tz-list-item-time">${localTime}</div>
+        <div style="font-size:9px;font-family:'DM Mono',monospace;color:${isHome ? 'var(--accent)' : 'var(--muted)'};">${diffLabel}</div>
+      </div>
+      ${isProtectedHome
+        ? '<button class="tz-remove-btn disabled" disabled title="Change this home timezone before removing it">🔒</button>'
+        : '<button class="tz-remove-btn" onclick="removeZone(\'' + z.id + '\')" title="Remove timezone card">✕</button>'}
+    </div>`;
+  });
+
+  body.innerHTML = html;
+}
+
+function onTzSearch(query) {
+  const resultsEl = document.getElementById('tzSearchResults');
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) { resultsEl.classList.remove('visible'); return; }
+
+  // Search EXTRA_TZ_DB + allow raw IANA input
+  const matches = getTimezoneCatalog().filter(tz =>
+    tz.name.toLowerCase().includes(q) || tz.tz.toLowerCase().includes(q)
+  ).slice(0, 12);
+
+  let html = '';
+  if (matches.length === 0) {
+    // Try treating query as raw IANA tz
+    const candidate = query.trim();
+    if (isValidTz(candidate)) {
+      const alreadyAdded = isZoneAdded(candidate);
+      const offset = getTzOffset(candidate);
+      html = `<div class="tz-search-item ${alreadyAdded ? 'already-added' : ''}" onclick="${alreadyAdded ? '' : `addCustomTz('${candidate}','${candidate}')`}">
+        <span class="tz-search-item-name">${candidate}</span>
+        <span class="tz-search-item-offset">UTC${offset >= 0 ? '+' : ''}${offset} ${alreadyAdded ? '· Added' : '· Click to add'}</span>
+      </div>`;
+    } else {
+      html = `<div class="tz-search-item"><span style="color:var(--muted)">No results. Try a city name or IANA tz string.</span></div>`;
+    }
+  } else {
+    matches.forEach(tz => {
+      const alreadyAdded = isZoneAdded(tz.tz);
+      const offset = getTzOffset(tz.tz);
+      const offsetStr = `UTC${offset >= 0 ? '+' : ''}${offset}`;
+      html += `<div class="tz-search-item ${alreadyAdded ? 'already-added' : ''}" onclick="${alreadyAdded ? '' : `addCustomTz('${tz.tz}','${tz.name}')`}">
+        <span class="tz-search-item-name">${tz.name}<span style="color:var(--muted);font-weight:400;margin-left:6px">${tz.tz}</span></span>
+        <span class="tz-search-item-offset">${offsetStr}${alreadyAdded ? ' · Added' : ''}</span>
+      </div>`;
+    });
+  }
+
+  resultsEl.innerHTML = html;
+  resultsEl.classList.add('visible');
+}
+
+function addCustomTzFromInput() {
+  const input = document.getElementById('tzSearchInput').value.trim();
+  if (!input) return;
+  // Match both preset and extended timezone entries first.
+  const match = getTimezoneCatalog().find(tz =>
+    tz.name.toLowerCase() === input.toLowerCase() || tz.tz.toLowerCase() === input.toLowerCase()
+  );
+  if (match) { addCustomTz(match.tz, match.name); return; }
+  // Try raw IANA
+  if (isValidTz(input)) { addCustomTz(input, input.split('/').pop().replace(/_/g, ' ')); return; }
+  alert('Invalid timezone. Try a city name from the dropdown or a valid IANA timezone string (e.g. Asia/Kolkata).');
+}
+
+function addCustomTz(tzStr, displayName) {
+  if (isZoneAdded(tzStr)) return;
+  const preset = ZONES.find(zone => zone.tz === tzStr);
+  if (preset) {
+    hiddenZoneIds.delete(preset.id);
+    saveHiddenZoneIds();
+    refreshTimezoneUi();
+    return;
+  }
+
+  const id = 'custom_' + tzStr.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  const offset = getTzOffset(tzStr);
+  customZones.push({ id, name: displayName, tz: tzStr, utcOffset: offset });
+  shifts[id] = shifts[id] || { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
+  saveCustomZones();
+  saveShiftState();
+
+  refreshTimezoneUi();
+}
+
+function refreshTimezoneUi() {
+  populateAllWcSelects();
+  populateCompareAxisSelect();
+  renderAllWc();
+  renderTzList();
+  document.getElementById('tzSearchInput').value = '';
+  document.getElementById('tzSearchResults').classList.remove('visible');
+}
+
+function removeZone(id) {
+  if (Object.values(wcState).some(state => state.homeTzId === id)) return;
+
+  if (ZONES.some(zone => zone.id === id)) {
+    hiddenZoneIds.add(id);
+    saveHiddenZoneIds();
+  } else {
+    customZones = customZones.filter(zone => zone.id !== id);
+    saveCustomZones();
+    delete shifts[id];
+    saveShiftState();
+  }
+
+  compareSelected.delete(id);
+  if (compareAxisTzId === id) compareAxisTzId = 'utc';
+  refreshTimezoneUi();
+  renderCompare();
+}
+
+// ── Init ──
+populateAllWcSelects();
+populateCompareAxisSelect();
+
+// Initialise scrubbers to current local time for each instance
+['tl', 'mg'].forEach(id => {
+  const now = new Date();
+  const homeOffset = getUTCOffsetForTz(wcState[id].homeTzId);
+  const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const localMins = ((utcMins + homeOffset * 60) % 1440 + 1440) % 1440;
+  const scrubEl = document.getElementById(`wcScrubber_${id}`);
+  if (scrubEl) { scrubEl.value = localMins; updateWcScrubFill(id, localMins); }
+});
+
+hydrateCoverageInputs();
+renderAllWc();
+buildGrid();
+buildShiftRows();
+buildShiftRowsManage();
+findCoverage();
+updateClock();
+
+setInterval(updateClock, 1000);
+setInterval(() => {
+  // Auto-update WC instances that aren't being scrubbed
+  ['tl','mg'].forEach(id => { if (wcState[id].scrubMinutes === null) renderWcInstance(id); });
+  buildGrid();
+}, 30000);
+</script>
+</body>
+</html>
