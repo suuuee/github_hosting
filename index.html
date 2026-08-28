@@ -1050,7 +1050,7 @@
             <span>Explore any time of day</span>
             <span id="wcScrubDisplay_tl">—</span>
           </div>
-          <input type="range" id="wcScrubber_tl" min="0" max="1439" value="0" oninput="onWcScrub('tl', this.value)" style="margin-bottom:0">
+          <input type="range" id="wcScrubber_tl" min="0" max="1439" value="0" step ="30" oninput="onWcScrub('tl', this.value)" style="margin-bottom:0">
           <div class="wc-scrubber-ticks">
             <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
             <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span><span>12AM</span>
@@ -1119,7 +1119,7 @@
             <span>Explore any time of day</span>
             <span id="wcScrubDisplay_mg">—</span>
           </div>
-          <input type="range" id="wcScrubber_mg" min="0" max="1439" value="0" oninput="onWcScrub('mg', this.value)" style="margin-bottom:0">
+          <input type="range" id="wcScrubber_mg" min="0" max="1439" value="0" step="30" oninput="onWcScrub('mg', this.value)" style="margin-bottom:0">
           <div class="wc-scrubber-ticks">
             <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
             <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span><span>12AM</span>
@@ -1179,7 +1179,7 @@
     <div class="tz-manager-header">
       <div>
         <h3>🌍 Manage Timezones</h3>
-        <p>Add any IANA timezone to your world clocks · Preset zones always visible</p>
+        <p>Add or remove timezone cards · Home zones stay protected</p>
       </div>
       <button class="tz-close-btn" onclick="closeTzManager()">✕</button>
     </div>
@@ -1196,25 +1196,174 @@
 
 <script>
 const ZONES = [
-  { id: 'syd',  name: 'Sydney',        tz: 'Australia/Sydney',     utcOffset: 11 },
-  { id: 'auk',  name: 'Auckland',      tz: 'Pacific/Auckland',     utcOffset: 13 },
-  { id: 'sin',  name: 'Singapore',     tz: 'Asia/Singapore',       utcOffset: 8  },
-  { id: 'dxb',  name: 'Dubai',         tz: 'Asia/Dubai',           utcOffset: 4  },
-  { id: 'jhb',  name: 'Johannesburg',  tz: 'Africa/Johannesburg',  utcOffset: 2  },
-  { id: 'mau',  name: 'Port Louis',    tz: 'Indian/Mauritius',     utcOffset: 4  },
+  { id: 'mex',  name: 'Mexico City',   tz: 'America/Mexico_City',  utcOffset: -6 },
+  { id: 'phi',  name: 'Philadelphia',  tz: 'America/New_York',     utcOffset: -5 },
+  { id: 'lon',  name: 'London',        tz: 'Europe/London',        utcOffset: 0  },
   { id: 'fra',  name: 'Frankfurt',     tz: 'Europe/Berlin',        utcOffset: 1  },
   { id: 'par',  name: 'Paris',         tz: 'Europe/Paris',         utcOffset: 1  },
-  { id: 'phi',  name: 'Philadelphia',  tz: 'America/New_York',     utcOffset: -5 },
-  { id: 'mex',  name: 'Mexico City',   tz: 'America/Mexico_City',  utcOffset: -6 },
-  { id: 'lon',  name: 'London',        tz: 'Europe/London',        utcOffset: 0  },
+  { id: 'jhb',  name: 'Johannesburg',  tz: 'Africa/Johannesburg',  utcOffset: 2  },
+  { id: 'dxb',  name: 'Dubai',         tz: 'Asia/Dubai',           utcOffset: 4  },
+  { id: 'mau',  name: 'Port Louis',    tz: 'Indian/Mauritius',     utcOffset: 4  },
+  { id: 'sin',  name: 'Singapore',     tz: 'Asia/Singapore',       utcOffset: 8  },
   { id: 'mnl',  name: 'Manila',        tz: 'Asia/Manila',          utcOffset: 8  },
+  { id: 'syd',  name: 'Sydney',        tz: 'Australia/Sydney',     utcOffset: 11 },
+  { id: 'auk',  name: 'Auckland',      tz: 'Pacific/Auckland',     utcOffset: 13 },
 ];
 
 const DEFAULT_LOCAL_START = 8;
 const DEFAULT_DURATION = 10;
+const SHIFT_STORAGE_KEY = 'global-shift-manager-shifts';
+const COVERAGE_STORAGE_KEY = 'global-shift-manager-coverage';
+const HOME_TZ_STORAGE_KEY = 'global-shift-manager-home-tz';
+const CUSTOM_TZ_STORAGE_KEY = 'global-shift-manager-custom-zones';
+const HIDDEN_TZ_STORAGE_KEY = 'global-shift-manager-hidden-zones';
 
-let shifts = {};
-ZONES.forEach(z => { shifts[z.id] = { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION }; });
+function getDefaultShiftState() {
+  const state = {};
+  ZONES.forEach(z => {
+    state[z.id] = { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
+  });
+  return state;
+}
+
+function getDefaultCoverageState() {
+  return { gapStart: '02:00', gapEnd: '06:00' };
+}
+
+function loadShiftState() {
+  try {
+    const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    const candidate = saved && typeof saved === 'object' && saved.shifts ? saved.shifts : saved;
+    const nextState = getDefaultShiftState();
+
+    if (!candidate || typeof candidate !== 'object') {
+      return nextState;
+    }
+
+    getAllDisplayZones().forEach(z => {
+      const existing = candidate[z.id] || {};
+      const localStart = Number(existing.localStart);
+      const duration = Number(existing.duration);
+
+      nextState[z.id] = {
+        localStart: Number.isFinite(localStart) && localStart >= 0 && localStart <= 23 ? localStart : DEFAULT_LOCAL_START,
+        duration: Number.isFinite(duration) && duration >= 1 && duration <= 24 ? duration : DEFAULT_DURATION
+      };
+    });
+
+    return nextState;
+  } catch (error) {
+    return getDefaultShiftState();
+  }
+}
+
+function loadCoverageState() {
+  try {
+    const raw = localStorage.getItem(COVERAGE_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    const defaults = getDefaultCoverageState();
+
+    return {
+      gapStart: typeof saved.gapStart === 'string' && /^\d{1,2}:\d{2}$/.test(saved.gapStart) ? saved.gapStart : defaults.gapStart,
+      gapEnd: typeof saved.gapEnd === 'string' && /^\d{1,2}:\d{2}$/.test(saved.gapEnd) ? saved.gapEnd : defaults.gapEnd
+    };
+  } catch (error) {
+    return getDefaultCoverageState();
+  }
+}
+
+function saveShiftState() {
+  try {
+    localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify({ shifts, savedAt: Date.now() }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function saveCoverageState() {
+  try {
+    localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify({
+      gapStart: document.getElementById('gapStart')?.value || getDefaultCoverageState().gapStart,
+      gapEnd: document.getElementById('gapEnd')?.value || getDefaultCoverageState().gapEnd
+    }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadHomeTzState() {
+  try {
+    const raw = localStorage.getItem(HOME_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    const next = {
+      tl: typeof saved.tl === 'string' ? saved.tl : 'sin',
+      mg: typeof saved.mg === 'string' ? saved.mg : 'sin'
+    };
+    return next;
+  } catch (error) {
+    return { tl: 'sin', mg: 'sin' };
+  }
+}
+
+function saveHomeTzState() {
+  try {
+    localStorage.setItem(HOME_TZ_STORAGE_KEY, JSON.stringify({
+      tl: wcState.tl.homeTzId,
+      mg: wcState.mg.homeTzId
+    }));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadCustomZones() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(saved)) return [];
+
+    return saved.filter(item => item && typeof item === 'object' && typeof item.tz === 'string' && isValidTz(item.tz))
+      .map(item => ({
+        id: typeof item.id === 'string' ? item.id : 'custom_' + item.tz.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, ''),
+        name: typeof item.name === 'string' ? item.name : item.tz.split('/').pop().replace(/_/g, ' '),
+        tz: item.tz,
+        utcOffset: Number.isFinite(Number(item.utcOffset)) ? Number(item.utcOffset) : getTzOffset(item.tz)
+      }));
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveCustomZones() {
+  try {
+    localStorage.setItem(CUSTOM_TZ_STORAGE_KEY, JSON.stringify(customZones));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+function loadHiddenZoneIds() {
+  try {
+    const raw = localStorage.getItem(HIDDEN_TZ_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(saved) ? saved.filter(id => ZONES.some(z => z.id === id)) : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function saveHiddenZoneIds() {
+  try {
+    localStorage.setItem(HIDDEN_TZ_STORAGE_KEY, JSON.stringify([...hiddenZoneIds]));
+  } catch (error) {
+    // Ignore storage failures so the UI still works in restricted environments.
+  }
+}
+
+let shifts = loadShiftState();
+let coverageState = loadCoverageState();
+let homeTzState = loadHomeTzState();
 
 let editMode = false;
 let gapHours = new Set();
@@ -1247,7 +1396,7 @@ function localToUtc(localHour, utcOffset) {
 }
 
 function getShiftUtcHours(tzId) {
-  const s = shifts[tzId];
+  const s = shifts[tzId] || { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
   const offset = getUTCOffsetForTz(tzId);
   // Convert local start to UTC minutes
   const localStartMins = s.localStart * 60;
@@ -1263,7 +1412,11 @@ function getShiftUtcHours(tzId) {
 function getCurrentUtcHour() { return new Date().getUTCHours(); }
 
 function getLocalTimeStr(tzId) {
-  const z = ZONES.find(z => z.id === tzId);
+  // FIX: look up the zone across ALL displayed zones (preset + custom),
+  // not just the static preset ZONES list — otherwise custom timezones
+  // added via the Timezone Manager show "--:--" in the timeline rows.
+  const z = getAllDisplayZones().find(z => z.id === tzId);
+  if (!z) return '--:--';
   try { return new Date().toLocaleTimeString('en-GB', { timeZone: z.tz, hour: '2-digit', minute: '2-digit' }); }
   catch(e) { return '--:--'; }
 }
@@ -1313,8 +1466,8 @@ function switchTab(name) {
 // ── World Clock: per-instance state ──
 // Each instance (id: 'tl' or 'mg') has its own homeTzId and scrubMinutes
 const wcState = {
-  tl: { homeTzId: 'sin', scrubMinutes: null },
-  mg: { homeTzId: 'sin', scrubMinutes: null },
+  tl: { homeTzId: homeTzState.tl || 'sin', scrubMinutes: null },
+  mg: { homeTzId: homeTzState.mg || 'sin', scrubMinutes: null },
 };
 
 function populateAllWcSelects() {
@@ -1334,7 +1487,9 @@ function populateAllWcSelects() {
 
 function onHomeTzChange(id) {
   wcState[id].homeTzId = document.getElementById(`homeTzSelect_${id}`).value;
+  saveHomeTzState();
   renderWcInstance(id);
+  renderTzList();
 }
 
 function useNow(id) {
@@ -1403,7 +1558,7 @@ function renderWcInstance(id) {
   // Full cards (expanded)
   let cardsHtml = '';
 
-  getAllDisplayZones().forEach(z => {
+  getOrderedZonesForHome(state.homeTzId).forEach(z => {
     const offset = getUTCOffsetForTz(z.id);
     const localMins = ((utcMins + offset * 60) % 1440 + 1440) % 1440;
     const t = minutesToTimeStr(localMins);
@@ -1453,12 +1608,13 @@ function renderAllWc() {
 function buildGrid() {
   const container = document.getElementById('gridContainer');
   const currentHour = getCurrentUtcHour();
+  const displayZones = getAllDisplayZones();
 
   let html = '<div class="hour-labels"><div class="hour-label" style="text-align:left;font-size:10px;color:var(--muted)">TIMEZONE</div>';
   for (let h = 0; h < 24; h++) html += `<div class="hour-label">${String(h).padStart(2,'0')}</div>`;
   html += '</div>';
 
-  ZONES.forEach(z => {
+  displayZones.forEach(z => {
     const shiftHours = getShiftUtcHours(z.id);
     const localTime = getLocalTimeStr(z.id);
 
@@ -1491,6 +1647,7 @@ function cellClick(cell) {
   const offset = getUTCOffsetForTz(tzId);
   const localHour = ((hour + offset) % 24 + 24) % 24;
   shifts[tzId].localStart = localHour;
+  saveShiftState();
   buildGrid();
   buildShiftRows();
   findCoverage();
@@ -1504,12 +1661,40 @@ function toggleEditMode() {
 }
 
 function resetShifts() {
-  ZONES.forEach(z => { shifts[z.id] = { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION }; });
+  // Restore the page to exactly the original preset zones, clear custom zones that were added and unhide preset zones
+  // removed via Timezone Manager
+  customZones = [];
+  saveCustomZones();
+  hiddenZoneIds = new Set();
+  saveHiddenZoneIds();
+ 
+  // Reset every preset zone's local shift start/duration back to the default
+  shifts = getDefaultShiftState();
+  saveShiftState();
+ 
+  // If a home-timezone selection or compare-axis pointed at a custom zone
+  // that just got removed, fall back to a preset zone that still exists.
+  ['tl', 'mg'].forEach(id => {
+    if (!ZONES.some(z => z.id === wcState[id].homeTzId)) {
+      wcState[id].homeTzId = 'sin';
+    }
+  });
+  saveHomeTzState();
+ 
+  compareSelected = new Set([...compareSelected].filter(id => ZONES.some(z => z.id === id)));
+  if (compareAxisTzId !== 'utc' && !ZONES.some(z => z.id === compareAxisTzId)) {
+    compareAxisTzId = 'utc';
+  }
+ 
+  populateAllWcSelects();
+  populateCompareAxisSelect();
+  renderAllWc();
+  renderTzList();
   buildGrid();
   buildShiftRows();
   buildShiftRowsManage();
   findCoverage();
-  renderAllWc();
+  renderCompare();
 }
 
 // ── Shift Rows ──
@@ -1535,11 +1720,11 @@ function shiftRowHtml(z, forManage = false) {
     <div class="shift-tz-name">${z.name}</div>
     <div class="field" style="flex:0 0 auto">
       <label style="font-size:10px">Start (local)</label>
-      <input type="time" value="${startStr}" onchange="updateShiftStart('${z.id}', this.value)" style="width:110px">
+      <input type="time" value="${startStr}" onchange="updateShiftStart('${z.id}', this.value)" style="width:118px">
     </div>
     <div class="field" style="flex:0 0 auto">
       <label style="font-size:10px">Hours</label>
-      <input type="number" min="1" max="24" value="${s.duration}" onchange="updateDuration('${z.id}', this.value)" style="width:65px">
+      <input type="number" min="1" max="24" value="${s.duration}" onchange="updateDuration('${z.id}', this.value)" style="width:60px">
     </div>
     <div class="shift-duration" style="color:${durationColor}">${startStr}→${endStr}</div>
     <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;background:${durationBg};color:${durationColor};white-space:nowrap">${dur}h ${durationLabel}</div>
@@ -1547,11 +1732,11 @@ function shiftRowHtml(z, forManage = false) {
 }
 
 function buildShiftRows() {
-  document.getElementById('shiftRows').innerHTML = ZONES.map(z => shiftRowHtml(z, false)).join('');
+  document.getElementById('shiftRows').innerHTML = getAllDisplayZones().map(z => shiftRowHtml(z, false)).join('');
 }
 
 function buildShiftRowsManage() {
-  document.getElementById('shiftRowsManage').innerHTML = ZONES.map(z => shiftRowHtml(z, true)).join('');
+  document.getElementById('shiftRowsManage').innerHTML = getAllDisplayZones().map(z => shiftRowHtml(z, true)).join('');
 }
 
 // ── Compare Mode ──
@@ -1653,11 +1838,11 @@ function renderCompare() {
   }
 
   panel.classList.add('visible');
-  const selected = ZONES.filter(z => compareSelected.has(z.id));
+  const selected = getAllDisplayZones().filter(z => compareSelected.has(z.id));
   sub.textContent = `Comparing ${selected.map(z => z.name).join(', ')}`;
 
   // Axis label
-  const axisLabel = compareAxisTzId === 'utc' ? 'UTC' : (ZONES.find(z => z.id === compareAxisTzId)?.name || 'UTC');
+  const axisLabel = compareAxisTzId === 'utc' ? 'UTC' : (getAllDisplayZones().find(z => z.id === compareAxisTzId)?.name || 'UTC');
   const axisOffset = compareAxisTzId === 'utc' ? 0 : getUTCOffsetForTz(compareAxisTzId);
 
   // UTC hours 0-23 in display order (sorted by their local time in axis TZ)
@@ -1804,19 +1989,37 @@ function buildHourRanges(hoursSet) {
 function updateShiftStart(tzId, timeStr) {
   const [h] = timeStr.split(':').map(Number);
   shifts[tzId].localStart = h;
+  saveShiftState();
   buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
 }
 
 function updateDuration(tzId, val) {
   shifts[tzId].duration = Math.max(1, Math.min(24, parseInt(val) || 10));
+  saveShiftState();
   buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
+}
+
+function hydrateCoverageInputs() {
+  const startInput = document.getElementById('gapStart');
+  const endInput = document.getElementById('gapEnd');
+  if (startInput) startInput.value = coverageState.gapStart;
+  if (endInput) endInput.value = coverageState.gapEnd;
 }
 
 // ── Gap Finder ──
 function findCoverage() {
-  const startStr = document.getElementById('gapStart').value;
-  const endStr   = document.getElementById('gapEnd').value;
+  const startInput = document.getElementById('gapStart');
+  const endInput = document.getElementById('gapEnd');
+  const startStr = startInput ? startInput.value : coverageState.gapStart;
+  const endStr = endInput ? endInput.value : coverageState.gapEnd;
+  const displayZones = getAllDisplayZones();
+
   if (!startStr || !endStr) return;
+
+  coverageState = { gapStart: startStr, gapEnd: endStr };
+  if (startInput) startInput.value = startStr;
+  if (endInput) endInput.value = endStr;
+  saveCoverageState();
 
   const [sh] = startStr.split(':').map(Number);
   const [eh] = endStr.split(':').map(Number);
@@ -1833,7 +2036,7 @@ function findCoverage() {
   const alertBar = document.getElementById('alertBar');
   let html = '', anyCanCover = false;
 
-  ZONES.forEach(z => {
+  displayZones.forEach(z => {
     const shiftHours = getShiftUtcHours(z.id);
     let covered = 0, total = 0;
     for (let h = 0; h < 24; h++) {
@@ -1946,11 +2149,40 @@ const EXTRA_TZ_DB = [
   { name: 'Darwin', tz: 'Australia/Darwin' },
 ];
 
-// Custom timezones added by user (not in preset ZONES)
-let customZones = []; // array of { id, name, tz, utcOffset }
+// Custom timezones added by the user and preset zones hidden from the cards.
+let customZones = loadCustomZones(); // array of { id, name, tz, utcOffset }
+let hiddenZoneIds = loadHiddenZoneIds();
 
 function getAllDisplayZones() {
-  return [...ZONES, ...customZones];
+  return [...ZONES.filter(zone => !hiddenZoneIds.has(zone.id)), ...customZones];
+}
+
+// Linear display order: behind -> home -> same offset -> ahead.
+function getOrderedZonesForHome(homeTzId) {
+  const displayZones = getAllDisplayZones();
+  const fallbackId = displayZones.some(zone => zone.id === 'sin') ? 'sin' : displayZones[0]?.id;
+  const homeId = homeTzId && displayZones.some(zone => zone.id === homeTzId) ? homeTzId : fallbackId;
+  if (!homeId) return [];
+
+  const homeOffset = getUTCOffsetForTz(homeId);
+  const allZones = displayZones.map((zone, index) => {
+    const offset = getUTCOffsetForTz(zone.id);
+    return { ...zone, offset, diff: offset - homeOffset, sourceOrder: index };
+  });
+
+  const homeZone = allZones.find(zone => zone.id === homeId) || allZones[0];
+  const left = allZones
+    .filter(zone => zone.id !== homeId && zone.diff < 0)
+    .sort((a, b) => (a.diff - b.diff) || (a.sourceOrder - b.sourceOrder));
+  const sameOffset = allZones
+    .filter(zone => zone.id !== homeId && zone.diff === 0)
+    .sort((a, b) => a.sourceOrder - b.sourceOrder);
+  const ahead = allZones
+    .filter(zone => zone.id !== homeId && zone.diff > 0)
+    .sort((a, b) => (a.diff - b.diff) || (a.sourceOrder - b.sourceOrder));
+
+  const ordered = [...left, homeZone, ...sameOffset, ...ahead];
+  return ordered.filter(Boolean);
 }
 
 function openTzManager() {
@@ -1987,45 +2219,52 @@ function getLocalTimeFull(tzStr) {
 }
 
 function isZoneAdded(tzStr) {
-  return ZONES.some(z => z.tz === tzStr) || customZones.some(z => z.tz === tzStr);
+  return getAllDisplayZones().some(z => z.tz === tzStr);
 }
+
+function getTimezoneCatalog() {
+  // Always include the full original preset ZONES list (regardless of whether
+  // they're currently hidden), plus any custom zones already added, plus the
+  // extended city database — so a preset zone removed via the Timezone Manager
+  // can still be found and re-added later.
+  return [...ZONES, ...customZones, ...EXTRA_TZ_DB].filter((zone, index, zones) =>
+    zones.findIndex(candidate => candidate.tz === zone.tz) === index
+  );
+}
+
+// Render the list of timezones in the manager overlay
 
 function renderTzList() {
   const body = document.getElementById('tzListBody');
-  let html = '';
+  const homeTzId = wcState.mg.homeTzId || 'sin';
+  const orderedZones = getOrderedZonesForHome(homeTzId);
+  const homeName = getAllDisplayZones().find(z => z.id === homeTzId)?.name || 'Home TZ';
 
-  // Preset zones
-  html += `<div class="tz-list-section-title">Preset Zones (${ZONES.length})</div>`;
-  ZONES.forEach(z => {
+  let html = `<div class="tz-list-section-title">Relative to ${homeName} (${orderedZones.length} zones)</div>`;
+
+  orderedZones.forEach(z => {
     const offset = getUTCOffsetForTz(z.id);
     const localTime = getLocalTimeFull(z.tz);
-    html += `<div class="tz-list-item">
-      <div class="tz-list-item-icon">📍</div>
+    const isHome = z.id === homeTzId;
+    const diff = offset - getUTCOffsetForTz(homeTzId);
+    const diffLabel = isHome ? 'Home TZ' : `${diff >= 0 ? '+' : ''}${diff}h`;
+    const isProtectedHome = Object.values(wcState).some(state => state.homeTzId === z.id);
+
+    html += `<div class="tz-list-item" style="${isHome ? 'border-color: var(--accent); background: rgba(0,119,204,0.05);' : ''}">
+      <div class="tz-list-item-icon">${isHome ? '🏠' : '📍'}</div>
       <div style="flex:1;min-width:0">
-        <div class="tz-list-item-name">${z.name}</div>
+        <div class="tz-list-item-name">${z.name}${isHome ? ' (Home)' : ''}</div>
         <div class="tz-list-item-tz">${z.tz}</div>
       </div>
-      <div class="tz-list-item-time">${localTime}</div>
-      <button class="tz-remove-btn disabled" disabled title="Preset zone — cannot remove">🔒</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:90px;">
+        <div class="tz-list-item-time">${localTime}</div>
+        <div style="font-size:9px;font-family:'DM Mono',monospace;color:${isHome ? 'var(--accent)' : 'var(--muted)'};">${diffLabel}</div>
+      </div>
+      ${isProtectedHome
+        ? '<button class="tz-remove-btn disabled" disabled title="Change this home timezone before removing it">🔒</button>'
+        : '<button class="tz-remove-btn" onclick="removeZone(\'' + z.id + '\')" title="Remove timezone card">✕</button>'}
     </div>`;
   });
-
-  // Custom zones
-  if (customZones.length > 0) {
-    html += `<div class="tz-list-section-title">Custom Zones (${customZones.length})</div>`;
-    customZones.forEach(z => {
-      const localTime = getLocalTimeFull(z.tz);
-      html += `<div class="tz-list-item">
-        <div class="tz-list-item-icon">✚</div>
-        <div style="flex:1;min-width:0">
-          <div class="tz-list-item-name">${z.name}</div>
-          <div class="tz-list-item-tz">${z.tz}</div>
-        </div>
-        <div class="tz-list-item-time">${localTime}</div>
-        <button class="tz-remove-btn" onclick="removeCustomZone('${z.id}')" title="Remove">✕</button>
-      </div>`;
-    });
-  }
 
   body.innerHTML = html;
 }
@@ -2036,7 +2275,7 @@ function onTzSearch(query) {
   if (q.length < 2) { resultsEl.classList.remove('visible'); return; }
 
   // Search EXTRA_TZ_DB + allow raw IANA input
-  const matches = EXTRA_TZ_DB.filter(tz =>
+  const matches = getTimezoneCatalog().filter(tz =>
     tz.name.toLowerCase().includes(q) || tz.tz.toLowerCase().includes(q)
   ).slice(0, 12);
 
@@ -2073,8 +2312,10 @@ function onTzSearch(query) {
 function addCustomTzFromInput() {
   const input = document.getElementById('tzSearchInput').value.trim();
   if (!input) return;
-  // Find in EXTRA_TZ_DB first
-  const match = EXTRA_TZ_DB.find(tz => tz.name.toLowerCase() === input.toLowerCase() || tz.tz.toLowerCase() === input.toLowerCase());
+  // Match both preset and extended timezone entries first.
+  const match = getTimezoneCatalog().find(tz =>
+    tz.name.toLowerCase() === input.toLowerCase() || tz.tz.toLowerCase() === input.toLowerCase()
+  );
   if (match) { addCustomTz(match.tz, match.name); return; }
   // Try raw IANA
   if (isValidTz(input)) { addCustomTz(input, input.split('/').pop().replace(/_/g, ' ')); return; }
@@ -2083,29 +2324,55 @@ function addCustomTzFromInput() {
 
 function addCustomTz(tzStr, displayName) {
   if (isZoneAdded(tzStr)) return;
+  const preset = ZONES.find(zone => zone.tz === tzStr);
+  if (preset) {
+    hiddenZoneIds.delete(preset.id);
+    saveHiddenZoneIds();
+    refreshTimezoneUi();
+    return;
+  }
+
   const id = 'custom_' + tzStr.replace(/\//g, '_').replace(/[^a-zA-Z0-9_]/g, '');
   const offset = getTzOffset(tzStr);
   customZones.push({ id, name: displayName, tz: tzStr, utcOffset: offset });
+  shifts[id] = shifts[id] || { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
+  saveCustomZones();
+  saveShiftState();
 
-  // Refresh everything
+  refreshTimezoneUi();
+}
+
+function refreshTimezoneUi() {
   populateAllWcSelects();
   populateCompareAxisSelect();
   renderAllWc();
   renderTzList();
+  buildGrid();
+  buildShiftRows();
+  buildShiftRowsManage();
+  findCoverage();
+  renderCompare();
   document.getElementById('tzSearchInput').value = '';
   document.getElementById('tzSearchResults').classList.remove('visible');
 }
 
-function removeCustomZone(id) {
-  customZones = customZones.filter(z => z.id !== id);
-  // If any wcState was using this tz, reset to 'sin'
-  ['tl','mg'].forEach(wcId => {
-    if (wcState[wcId].homeTzId === id) wcState[wcId].homeTzId = 'sin';
-  });
-  populateAllWcSelects();
-  populateCompareAxisSelect();
-  renderAllWc();
-  renderTzList();
+function removeZone(id) {
+  if (Object.values(wcState).some(state => state.homeTzId === id)) return;
+
+  if (ZONES.some(zone => zone.id === id)) {
+    hiddenZoneIds.add(id);
+    saveHiddenZoneIds();
+  } else {
+    customZones = customZones.filter(zone => zone.id !== id);
+    saveCustomZones();
+    delete shifts[id];
+    saveShiftState();
+  }
+
+  compareSelected.delete(id);
+  if (compareAxisTzId === id) compareAxisTzId = 'utc';
+  refreshTimezoneUi();
+  renderCompare();
 }
 
 // ── Init ──
@@ -2122,6 +2389,7 @@ populateCompareAxisSelect();
   if (scrubEl) { scrubEl.value = localMins; updateWcScrubFill(id, localMins); }
 });
 
+hydrateCoverageInputs();
 renderAllWc();
 buildGrid();
 buildShiftRows();
