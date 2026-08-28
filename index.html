@@ -1486,9 +1486,11 @@ function populateAllWcSelects() {
 }
 
 function onHomeTzChange(id) {
-  wcState[id].homeTzId = document.getElementById(`homeTzSelect_${id}`).value;
+  const homeTzId = document.getElementById(`homeTzSelect_${id}`).value;
+  wcState.tl.homeTzId = homeTzId;
+  wcState.mg.homeTzId = homeTzId;
   saveHomeTzState();
-  renderWcInstance(id);
+  renderAllWc();
   renderTzList();
 }
 
