@@ -1241,7 +1241,7 @@ function loadShiftState() {
       return nextState;
     }
 
-    ZONES.forEach(z => {
+    getAllDisplayZones().forEach(z => {
       const existing = candidate[z.id] || {};
       const localStart = Number(existing.localStart);
       const duration = Number(existing.duration);
@@ -1412,7 +1412,11 @@ function getShiftUtcHours(tzId) {
 function getCurrentUtcHour() { return new Date().getUTCHours(); }
 
 function getLocalTimeStr(tzId) {
-  const z = ZONES.find(z => z.id === tzId);
+  // FIX: look up the zone across ALL displayed zones (preset + custom),
+  // not just the static preset ZONES list — otherwise custom timezones
+  // added via the Timezone Manager show "--:--" in the timeline rows.
+  const z = getAllDisplayZones().find(z => z.id === tzId);
+  if (!z) return '--:--';
   try { return new Date().toLocaleTimeString('en-GB', { timeZone: z.tz, hour: '2-digit', minute: '2-digit' }); }
   catch(e) { return '--:--'; }
 }
@@ -1604,12 +1608,13 @@ function renderAllWc() {
 function buildGrid() {
   const container = document.getElementById('gridContainer');
   const currentHour = getCurrentUtcHour();
+  const displayZones = getAllDisplayZones();
 
   let html = '<div class="hour-labels"><div class="hour-label" style="text-align:left;font-size:10px;color:var(--muted)">TIMEZONE</div>';
   for (let h = 0; h < 24; h++) html += `<div class="hour-label">${String(h).padStart(2,'0')}</div>`;
   html += '</div>';
 
-  ZONES.forEach(z => {
+  displayZones.forEach(z => {
     const shiftHours = getShiftUtcHours(z.id);
     const localTime = getLocalTimeStr(z.id);
 
@@ -1656,13 +1661,40 @@ function toggleEditMode() {
 }
 
 function resetShifts() {
+  // Restore the page to exactly the original preset zones, clear custom zones that were added and unhide preset zones
+  // removed via Timezone Manager
+  customZones = [];
+  saveCustomZones();
+  hiddenZoneIds = new Set();
+  saveHiddenZoneIds();
+ 
+  // Reset every preset zone's local shift start/duration back to the default
   shifts = getDefaultShiftState();
   saveShiftState();
+ 
+  // If a home-timezone selection or compare-axis pointed at a custom zone
+  // that just got removed, fall back to a preset zone that still exists.
+  ['tl', 'mg'].forEach(id => {
+    if (!ZONES.some(z => z.id === wcState[id].homeTzId)) {
+      wcState[id].homeTzId = 'sin';
+    }
+  });
+  saveHomeTzState();
+ 
+  compareSelected = new Set([...compareSelected].filter(id => ZONES.some(z => z.id === id)));
+  if (compareAxisTzId !== 'utc' && !ZONES.some(z => z.id === compareAxisTzId)) {
+    compareAxisTzId = 'utc';
+  }
+ 
+  populateAllWcSelects();
+  populateCompareAxisSelect();
+  renderAllWc();
+  renderTzList();
   buildGrid();
   buildShiftRows();
   buildShiftRowsManage();
   findCoverage();
-  renderAllWc();
+  renderCompare();
 }
 
 // ── Shift Rows ──
@@ -1700,11 +1732,11 @@ function shiftRowHtml(z, forManage = false) {
 }
 
 function buildShiftRows() {
-  document.getElementById('shiftRows').innerHTML = ZONES.map(z => shiftRowHtml(z, false)).join('');
+  document.getElementById('shiftRows').innerHTML = getAllDisplayZones().map(z => shiftRowHtml(z, false)).join('');
 }
 
 function buildShiftRowsManage() {
-  document.getElementById('shiftRowsManage').innerHTML = ZONES.map(z => shiftRowHtml(z, true)).join('');
+  document.getElementById('shiftRowsManage').innerHTML = getAllDisplayZones().map(z => shiftRowHtml(z, true)).join('');
 }
 
 // ── Compare Mode ──
@@ -1806,11 +1838,11 @@ function renderCompare() {
   }
 
   panel.classList.add('visible');
-  const selected = ZONES.filter(z => compareSelected.has(z.id));
+  const selected = getAllDisplayZones().filter(z => compareSelected.has(z.id));
   sub.textContent = `Comparing ${selected.map(z => z.name).join(', ')}`;
 
   // Axis label
-  const axisLabel = compareAxisTzId === 'utc' ? 'UTC' : (ZONES.find(z => z.id === compareAxisTzId)?.name || 'UTC');
+  const axisLabel = compareAxisTzId === 'utc' ? 'UTC' : (getAllDisplayZones().find(z => z.id === compareAxisTzId)?.name || 'UTC');
   const axisOffset = compareAxisTzId === 'utc' ? 0 : getUTCOffsetForTz(compareAxisTzId);
 
   // UTC hours 0-23 in display order (sorted by their local time in axis TZ)
@@ -1980,6 +2012,7 @@ function findCoverage() {
   const endInput = document.getElementById('gapEnd');
   const startStr = startInput ? startInput.value : coverageState.gapStart;
   const endStr = endInput ? endInput.value : coverageState.gapEnd;
+  const displayZones = getAllDisplayZones();
 
   if (!startStr || !endStr) return;
 
@@ -2003,7 +2036,7 @@ function findCoverage() {
   const alertBar = document.getElementById('alertBar');
   let html = '', anyCanCover = false;
 
-  ZONES.forEach(z => {
+  displayZones.forEach(z => {
     const shiftHours = getShiftUtcHours(z.id);
     let covered = 0, total = 0;
     for (let h = 0; h < 24; h++) {
@@ -2190,10 +2223,16 @@ function isZoneAdded(tzStr) {
 }
 
 function getTimezoneCatalog() {
-  return [...ZONES, ...EXTRA_TZ_DB].filter((zone, index, zones) =>
+  // Always include the full original preset ZONES list (regardless of whether
+  // they're currently hidden), plus any custom zones already added, plus the
+  // extended city database — so a preset zone removed via the Timezone Manager
+  // can still be found and re-added later.
+  return [...ZONES, ...customZones, ...EXTRA_TZ_DB].filter((zone, index, zones) =>
     zones.findIndex(candidate => candidate.tz === zone.tz) === index
   );
 }
+
+// Render the list of timezones in the manager overlay
 
 function renderTzList() {
   const body = document.getElementById('tzListBody');
@@ -2308,6 +2347,11 @@ function refreshTimezoneUi() {
   populateCompareAxisSelect();
   renderAllWc();
   renderTzList();
+  buildGrid();
+  buildShiftRows();
+  buildShiftRowsManage();
+  findCoverage();
+  renderCompare();
   document.getElementById('tzSearchInput').value = '';
   document.getElementById('tzSearchResults').classList.remove('visible');
 }
