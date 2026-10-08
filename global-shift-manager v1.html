@@ -403,19 +403,22 @@
   .tz-name { color: var(--text); }
   .tz-time-small { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); margin-top: 1px; }
 
-  .hour-cell {
-    height: 26px;
-    border-radius: 3px;
-    background: var(--surface2);
-    cursor: pointer;
-    transition: all 0.1s;
-    border: 1px solid transparent;
-  }
-  .hour-cell:hover { border-color: var(--accent); }
-  .hour-cell.on-shift { background: var(--accent); opacity: 0.75; }
-  .hour-cell.on-shift:hover { opacity: 1; }
-  .hour-cell.gap { background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
-  .hour-cell.current-hour { border-color: var(--accent3) !important; border-width: 2px; }
+.hour-cell {
+  height: 26px;
+  border-radius: 3px;
+  background: var(--surface2);
+  display: flex;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: border-color 0.1s;
+}
+.hour-cell:hover { border-color: var(--accent); }
+.hour-cell.current-hour { border-color: var(--accent3) !important; border-width: 2px; }
+.hour-cell .half { flex: 1; height: 100%; cursor: pointer; transition: background 0.1s; }
+.hour-cell .half:hover { background: rgba(0,119,204,0.25); }
+.hour-cell .half.gap { background: rgba(220,38,38,0.12); }
+.hour-cell .half.on-shift { background: var(--accent); opacity: 0.75; }
+.hour-cell .half.on-shift:hover { opacity: 1; background: var(--accent); }
 
   /* ─── BOTTOM PANELS ─── */
   .two-col {
@@ -1253,7 +1256,7 @@ function loadShiftState() {
 
       nextState[z.id] = {
         localStart: Number.isFinite(localStart) && localStart >= 0 && localStart <= 23 ? localStart : DEFAULT_LOCAL_START,
-        duration: Number.isFinite(duration) && duration >= 1 && duration <= 24 ? duration : DEFAULT_DURATION
+        duration: Number.isFinite(duration) && duration >= 0.5 && duration <= 24 ? duration : DEFAULT_DURATION
       };
     });
 
@@ -1400,18 +1403,27 @@ function localToUtc(localHour, utcOffset) {
   return ((utcMins % 1440) + 1440) % 1440 / 60; // returns float hours
 }
 
-function getShiftUtcHours(tzId) {
+// 48 half-hour slots per UTC day (slot 0 = 00:00–00:30)
+function getShiftUtcSlots(tzId) {
   const s = shifts[tzId] || { localStart: DEFAULT_LOCAL_START, duration: DEFAULT_DURATION };
   const offset = getUTCOffsetForTz(tzId);
-  // Convert local start to UTC minutes
-  const localStartMins = s.localStart * 60;
-  const utcStartMins = ((localStartMins - offset * 60) % 1440 + 1440) % 1440;
-  const hours = new Set();
-  for (let i = 0; i < s.duration; i++) {
-    // Each hour slot: the UTC hour that contains utcStartMins + i*60
-    hours.add(Math.floor((utcStartMins + i * 60) % 1440 / 60));
-  }
-  return hours;
+  const startMins = ((s.localStart * 60 - offset * 60) % 1440 + 1440) % 1440;
+  const slots = new Set();
+  const n = Math.round(s.duration * 2);
+  for (let i = 0; i < n; i++) slots.add(Math.floor(((startMins + i * 30) % 1440) / 30));
+  return slots;
+}
+
+// Hour-level view (any part of the hour covered) – keeps coverage finder & compare working
+function getShiftUtcHours(tzId) {
+  const hrs = new Set();
+  getShiftUtcSlots(tzId).forEach(sl => hrs.add(Math.floor(sl / 2)));
+  return hrs;
+}
+
+function fmtHM(hours) {
+  const m = ((Math.round(hours * 60) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`;
 }
 
 function getCurrentUtcHour() { return new Date().getUTCHours(); }
@@ -1570,7 +1582,7 @@ function renderWcInstance(id) {
     const localMins = ((utcMins + offset * 60) % 1440 + 1440) % 1440;
     const t = minutesToTimeStr(localMins);
     const isHome = z.id === state.homeTzId;
-    const onShift = isOnShift(z.id, utcHour);
+    const onShift = getShiftUtcSlots(z.id).has(Math.floor(utcMins / 30));
     const dateStr = getDateStr(z.id, todayUTC.getTime());
     const diffH = Math.round(offset - homeOffset);
 
@@ -1631,15 +1643,19 @@ function buildGrid() {
         <span class="tz-time-small">${localTime}</span>
       </div>`;
 
+    const slots = getShiftUtcSlots(z.id);
     for (let h = 0; h < 24; h++) {
-      const onShift = shiftHours.has(h);
-      const isGap   = gapHours.has(h);
-      const isCurr  = h === currentHour;
-      let cls = 'hour-cell';
-      if (onShift) cls += ' on-shift';
-      if (isGap && !onShift) cls += ' gap';
-      if (isCurr) cls += ' current-hour';
-      html += `<div class="${cls}" data-tz="${z.id}" data-hour="${h}" onclick="cellClick(this)" title="UTC ${String(h).padStart(2,'0')}:00 — ${z.name}"></div>`;
+      const isGap  = gapHours.has(h);
+      const isCurr = h === currentHour;
+      const halves = [0, 1].map(half => {
+        const slot = h * 2 + half;
+        let c = 'half';
+        if (slots.has(slot)) c += ' on-shift';
+        else if (isGap) c += ' gap';
+        const t = `${String(h).padStart(2,'0')}:${half ? '30' : '00'}`;
+        return `<div class="${c}" data-tz="${z.id}" data-slot="${slot}" onclick="cellClick(this)" title="UTC ${t} — ${z.name}"></div>`;
+      }).join('');
+      html += `<div class="hour-cell${isCurr ? ' current-hour' : ''}">${halves}</div>`;
     }
     html += '</div>';
   });
@@ -1650,14 +1666,12 @@ function buildGrid() {
 function cellClick(cell) {
   if (!editMode) return;
   const tzId = cell.dataset.tz;
-  const hour = parseInt(cell.dataset.hour);
+  const slot = parseInt(cell.dataset.slot);
   const offset = getUTCOffsetForTz(tzId);
-  const localHour = ((hour + offset) % 24 + 24) % 24;
-  shifts[tzId].localStart = localHour;
+  const localStart = (((slot * 0.5 + offset) % 24) + 24) % 24;
+  shifts[tzId].localStart = Math.round(localStart * 2) / 2;
   saveShiftState();
-  buildGrid();
-  buildShiftRows();
-  findCoverage();
+  buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage();
 }
 
 function toggleEditMode() {
@@ -1707,9 +1721,9 @@ function resetShifts() {
 // ── Shift Rows ──
 function shiftRowHtml(z, forManage = false) {
   const s = shifts[z.id];
-  const startStr = `${String(s.localStart).padStart(2,'0')}:00`;
+  const startStr = fmtHM(s.localStart);
+  const endStr   = fmtHM(s.localStart + s.duration);
   const endHour  = (s.localStart + s.duration) % 24;
-  const endStr   = `${String(endHour).padStart(2,'0')}:00`;
   const isSelected = compareSelected.has(z.id);
   const selectedCls = isSelected ? ' compare-selected' : '';
 
@@ -1731,7 +1745,7 @@ function shiftRowHtml(z, forManage = false) {
     </div>
     <div class="field" style="flex:0 0 auto">
       <label style="font-size:10px">Hours</label>
-      <input type="number" min="1" max="24" value="${s.duration}" onchange="updateDuration('${z.id}', this.value)" style="width:60px">
+      <input type="number" min="0.5" max="24" step="0.5" value="${s.duration}" onchange="updateDuration('${z.id}', this.value)" style="width:60px">
     </div>
     <div class="shift-duration" style="color:${durationColor}">${startStr}→${endStr}</div>
     <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;background:${durationBg};color:${durationColor};white-space:nowrap">${dur}h ${durationLabel}</div>
@@ -1890,9 +1904,9 @@ function renderCompare() {
   // Per-shift bars — columns ordered by axis TZ display slots
   let barsHtml = shiftSets.map(({ z, hours }) => {
     const s = shifts[z.id];
-    const startStr = `${String(s.localStart).padStart(2,'0')}:00`;
+    const startStr = `${fmtHM(s.localStart).padStart(2,'0')}:00`;
     const endHour  = (s.localStart + s.duration) % 24;
-    const endStr   = `${String(endHour).padStart(2,'0')}:00`;
+    const endStr   = `${fmtHM(endHour).padStart(2,'0')}:00`;
     const cells = displaySlots.map(utcH => {
       const active  = hours.has(utcH);
       const overlap = active && overlapHours.has(utcH);
@@ -1994,14 +2008,16 @@ function buildHourRanges(hoursSet) {
 }
 
 function updateShiftStart(tzId, timeStr) {
-  const [h] = timeStr.split(':').map(Number);
-  shifts[tzId].localStart = h;
+  if (!timeStr) return;
+  const [h, m] = timeStr.split(':').map(Number);
+  shifts[tzId].localStart = (h + Math.round(m / 30) / 2) % 24;   // snaps to :00 or :30
   saveShiftState();
   buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
 }
 
 function updateDuration(tzId, val) {
-  shifts[tzId].duration = Math.max(1, Math.min(24, parseInt(val) || 10));
+  const d = Math.round((parseFloat(val) || 10) * 2) / 2;
+  shifts[tzId].duration = Math.max(0.5, Math.min(24, d));
   saveShiftState();
   buildGrid(); buildShiftRows(); buildShiftRowsManage(); findCoverage(); renderAllWc(); renderCompare();
 }
